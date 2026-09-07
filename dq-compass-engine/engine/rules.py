@@ -274,10 +274,61 @@ def reconciliation_sum(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# 7. unique_composite
+# ---------------------------------------------------------------------------
+def unique_composite(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
+    """
+    Vérifie l'unicité d'une combinaison de colonnes (clé composite).
+
+    column : liste de colonnes séparées par ':' formant la clé composite
+    threshold : % max de lignes dupliquées toléré
+
+    Exemple : column='series_id:year' vérifie que chaque couple (series_id, year) est unique.
+
+    Ajouté pour supporter les datasets transformés wide→long où l'unicité porte
+    sur plusieurs dimensions (série + période temporelle).
+    """
+    columns_str = rule["column"]
+    if not columns_str or ":" not in columns_str:
+        raise EngineError(
+            f"[{rule['rule_id']}] column doit contenir plusieurs colonnes séparées par ':' "
+            f"pour unique_composite (ex: 'col1:col2')"
+        )
+
+    columns = [c.strip() for c in columns_str.split(":")]
+    _require_columns(df, columns, rule["dataset"], rule["rule_id"])
+    threshold_pct = float(rule["threshold"]) if str(rule["threshold"]).strip() else 0.0
+
+    # Identifie les lignes dupliquées sur la combinaison de colonnes
+    dup_mask = df.duplicated(subset=columns, keep=False)
+    total = len(df)
+    failed = int(dup_mask.sum())
+    rate_pct = (failed / total * 100) if total else 0.0
+
+    id_col = _client_col(df)
+    # Inclut toutes les colonnes de la clé composite + l'identifiant
+    cols_to_show = list(dict.fromkeys([id_col] + columns))
+    exceptions = df.loc[dup_mask, cols_to_show].copy()
+    exceptions["reason"] = f"Clé composite {'+'.join(columns)} dupliquée"
+
+    dup_count = len(df.loc[dup_mask].drop_duplicates(subset=columns))
+
+    return {
+        "total_records": total,
+        "failed_records": failed,
+        "kpi_value": round(rate_pct, 4),  # taux de duplication
+        "exceptions": exceptions,
+        "_within_tolerance": rate_pct <= threshold_pct,
+        "_dup_value_count": dup_count,
+    }
+
+
 LOGIC_TYPE_FUNCTIONS = {
     "not_null": not_null,
     "regex": regex,
     "unique": unique,
+    "unique_composite": unique_composite,
     "conditional_equals": conditional_equals,
     "max_age_days": max_age_days,
     "reconciliation_sum": reconciliation_sum,

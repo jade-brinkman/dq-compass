@@ -115,6 +115,50 @@ def resolve_dataset_files(rule_row, data_dir: Path) -> list:
     return paths
 
 
+def _transform_wide_to_long_if_needed(df: pd.DataFrame, dataset_name: str, log: logging.Logger) -> pd.DataFrame:
+    """
+    Transforme un DataFrame au format large (colonnes-année) vers le format long
+    si des colonnes à 4 chiffres sont détectées (1986-2022 par exemple).
+
+    Générique : ne code pas en dur les noms d'années, détecte automatiquement.
+    Appliqué aux datasets de type BIS avec série temporelle en colonnes.
+
+    Retourne le DataFrame transformé si applicable, sinon le DataFrame d'origine.
+    """
+    # Détecte les colonnes qui sont des années (format AAAA : 4 chiffres)
+    year_cols = [col for col in df.columns if str(col).strip().isdigit() and len(str(col).strip()) == 4]
+
+    if not year_cols:
+        # Pas de colonnes-année détectées, retourne le DataFrame tel quel
+        return df
+
+    log.info("Transformation wide→long détectée pour %s : %d colonnes-année trouvées (%s à %s)",
+             dataset_name, len(year_cols), min(year_cols), max(year_cols))
+
+    # Identifie les colonnes non-année (métadonnées de série)
+    id_vars = [col for col in df.columns if col not in year_cols]
+
+    # Transformation wide→long avec pd.melt
+    df_long = df.melt(
+        id_vars=id_vars,
+        value_vars=year_cols,
+        var_name="year",
+        value_name="value"
+    )
+
+    # Filtre les lignes où value est vide/NaN (pas de données pour cette année)
+    df_long = df_long[df_long["value"].str.strip() != ""].copy()
+
+    # Crée une colonne series_id à partir de la colonne Series si elle existe
+    if "Series" in df_long.columns:
+        df_long["series_id"] = df_long["Series"]
+
+    log.info("Transformation terminée : %d lignes → %d lignes (après filtrage des valeurs vides)",
+             len(df), len(df_long))
+
+    return df_long
+
+
 def load_all_datasets(valid_rows, data_dir: Path, log: logging.Logger) -> dict:
     datasets = {}
     for row in valid_rows:
@@ -125,7 +169,12 @@ def load_all_datasets(valid_rows, data_dir: Path, log: logging.Logger) -> dict:
                 # fonction de rules.py convertit elle-même ce dont elle a besoin
                 # (pd.to_numeric, pd.to_datetime) — aucune hypothèse sur les noms
                 # de colonnes d'un jeu de données en particulier.
-                datasets[name] = pd.read_csv(path, dtype=str, keep_default_na=False)
+                df = pd.read_csv(path, dtype=str, keep_default_na=False)
+
+                # Transformation wide→long automatique si colonnes-année détectées
+                df = _transform_wide_to_long_if_needed(df, name, log)
+
+                datasets[name] = df
     return datasets
 
 
