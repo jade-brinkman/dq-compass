@@ -1,0 +1,5 @@
+rule_id,control_name,dimension,severity,status,total_records,failed_records,kpi_value,kpi_label
+RH01,Complétude email manager,Complétude,High,FAIL,40,1,97.5,Taux de complétude
+RH02,Unicité matricule,Unicité,High,FAIL,40,2,5.0,Taux de duplication = 0%
+RH03,Cohérence salaire départ,Cohérence,High,PASS,40,0,0.0,Nb d'incohérences
+RH04,Réconciliation masse salariale,Réconciliation,High,FAIL,40,14,7.4074,Écart % par département

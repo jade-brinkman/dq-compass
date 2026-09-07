@@ -1,0 +1,19 @@
+2026-09-07 12:20:58,004 [INFO] === DQ Engine — run d75aa545 démarré à 2026-09-07T14:20:58+02:00 ===
+2026-09-07 12:20:58,007 [INFO] Catalogue chargé : catalogue/control_catalogue.csv (6 règles)
+2026-09-07 12:20:58,009 [INFO] Chargement du jeu de données : data/clients.csv
+2026-09-07 12:20:58,020 [INFO] Chargement du jeu de données : data/reference_totals.csv
+2026-09-07 12:20:58,024 [INFO] DQ01 (not_null) -> FAIL | total=521 failed=5 kpi=99.0403
+2026-09-07 12:20:58,028 [INFO] DQ02 (regex) -> FAIL | total=521 failed=20 kpi=96.124
+2026-09-07 12:20:58,029 [INFO] DQ03 (unique) -> FAIL | total=521 failed=2 kpi=0.3839
+2026-09-07 12:20:58,032 [INFO] DQ04 (conditional_equals) -> FAIL | total=521 failed=4 kpi=4
+2026-09-07 12:20:58,036 [INFO] DQ05 (max_age_days) -> FAIL | total=521 failed=31 kpi=31
+2026-09-07 12:20:58,040 [INFO] DQ06 (reconciliation_sum) -> FAIL | total=521 failed=100 kpi=4.7619
+2026-09-07 12:20:58,042 [INFO] results_summary.csv écrit (6 règles)
+2026-09-07 12:20:58,044 [INFO] Exceptions écrites pour DQ01 : runs/d75aa545/exceptions/DQ01_exceptions.csv (5 lignes)
+2026-09-07 12:20:58,046 [INFO] Exceptions écrites pour DQ02 : runs/d75aa545/exceptions/DQ02_exceptions.csv (20 lignes)
+2026-09-07 12:20:58,048 [INFO] Exceptions écrites pour DQ03 : runs/d75aa545/exceptions/DQ03_exceptions.csv (2 lignes)
+2026-09-07 12:20:58,050 [INFO] Exceptions écrites pour DQ04 : runs/d75aa545/exceptions/DQ04_exceptions.csv (4 lignes)
+2026-09-07 12:20:58,051 [INFO] Exceptions écrites pour DQ05 : runs/d75aa545/exceptions/DQ05_exceptions.csv (31 lignes)
+2026-09-07 12:20:58,055 [INFO] Exceptions écrites pour DQ06 : runs/d75aa545/exceptions/DQ06_exceptions.csv (100 lignes)
+2026-09-07 12:20:58,055 [INFO] manifest.json écrit (2 source(s) référencée(s))
+2026-09-07 12:20:58,056 [INFO] === Run d75aa545 terminé en 0.05s ===

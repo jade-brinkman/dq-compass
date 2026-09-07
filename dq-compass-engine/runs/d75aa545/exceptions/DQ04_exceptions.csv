@@ -1,0 +1,5 @@
+client_id,status,account_balance_eur,reason
+CLI-10221,closed,418.92,status=closed mais account_balance_eur != 0
+CLI-10238,closed,331.80,status=closed mais account_balance_eur != 0
+CLI-10458,closed,300.34,status=closed mais account_balance_eur != 0
+CLI-10474,closed,323.52,status=closed mais account_balance_eur != 0

@@ -1,0 +1,15 @@
+employee_id,department,salary_eur,computed_total,reference_total,deviation_pct,reason
+EMP-1002,Sales,30725.95,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1003,Sales,46643.98,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1003,Sales,47654.09,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1006,Sales,34259.22,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1007,Sales,54332.09,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1008,Sales,58028.93,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1009,Sales,57093.45,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1014,Sales,35753.22,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1018,Sales,60970.13,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1020,Sales,0.00,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1026,Sales,38901.97,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1030,Sales,68936.04,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1035,Sales,0.00,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales
+EMP-1037,Sales,0.00,533299.07,575963.0,7.4074,écart de réconciliation sur department=Sales

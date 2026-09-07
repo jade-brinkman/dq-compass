@@ -1,0 +1,21 @@
+client_id,email,reason
+CLI-10028,emma.simon28example.fr,email non conforme au format attendu
+CLI-10063,lea.michel63example.fr,email non conforme au format attendu
+CLI-10141,gabriel.fournier141@example,email non conforme au format attendu
+CLI-10144,lea.fournier144example.fr,email non conforme au format attendu
+CLI-10151,manon.girard151mailbox.eu,email non conforme au format attendu
+CLI-10188,jules.roux188@mailbox,email non conforme au format attendu
+CLI-10201,camille.dubois201 @example.fr,email non conforme au format attendu
+CLI-10216,gabriel.vincent216@,email non conforme au format attendu
+CLI-10233,julia.simon233@,email non conforme au format attendu
+CLI-10239,louis.durand239@,email non conforme au format attendu
+CLI-10246,emma.laurent246@,email non conforme au format attendu
+CLI-10322,tom.leroy322mailbox.eu,email non conforme au format attendu
+CLI-10365,nathan.dubois365mailbox.eu,email non conforme au format attendu
+CLI-10370,ines.dubois370 @example.fr,email non conforme au format attendu
+CLI-10402,jade.dubois402@example,email non conforme au format attendu
+CLI-10406,jade.durand406mailbox.eu,email non conforme au format attendu
+CLI-10426,lina.simon426 @example.com,email non conforme au format attendu
+CLI-10452,hugo.durand452@mailbox,email non conforme au format attendu
+CLI-10456,adam.girard456example.com,email non conforme au format attendu
+CLI-10466,ethan.durand466 @mailbox.eu,email non conforme au format attendu

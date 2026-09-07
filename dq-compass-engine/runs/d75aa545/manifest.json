@@ -1,0 +1,25 @@
+{
+  "run_id": "d75aa545",
+  "timestamp": "2026-09-07T14:20:58+02:00",
+  "engine": "dq-compass DQ Engine v1",
+  "sources": [
+    {
+      "file": "clients.csv",
+      "path": "data/clients.csv",
+      "sha256": "7d522e90c5c3fcbc0c504259c0f2e54193f3aba3068f75cf6bda53ab40eebe1e",
+      "row_count": 521
+    },
+    {
+      "file": "reference_totals.csv",
+      "path": "data/reference_totals.csv",
+      "sha256": "fc10b02d855a7f782c9a64f4275fc32aa214d86dbfff31ee4ce24242c3d2e59b",
+      "row_count": 5
+    }
+  ],
+  "catalogue_file": "control_catalogue.csv",
+  "catalogue_sha256": "287a1ea939ac2d243d07b4582541a7bd83b75001eade9256f7eb9f9d37d31da6",
+  "filters": {
+    "dimensions": null,
+    "rules": null
+  }
+}

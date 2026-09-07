@@ -1,0 +1,5 @@
+rule_id,control_name,control_type,description,logic_type,dataset,column,param,threshold,severity,frequency,owner,output_type,kpi,remediation_action
+RH01,Complétude email manager,Complétude,"manager_email doit être renseigné",not_null,employees.csv,manager_email,,0,High,Monthly,RH,results_summary,Taux de complétude,Compléter le champ manquant
+RH02,Unicité matricule,Unicité,"employee_id doit être unique",unique,employees.csv,employee_id,,0,High,Monthly,RH,results_summary,Taux de duplication = 0%,Dédupliquer
+RH03,Cohérence salaire départ,Cohérence,"Si status = terminated alors salary_eur = 0",conditional_equals,employees.csv,status:salary_eur,terminated:0,0.01,High,Monthly,RH,results_summary,Nb d'incohérences,Corriger le solde de tout compte
+RH04,Réconciliation masse salariale,Réconciliation,"Somme des salaires par department vs finance",reconciliation_sum,employees.csv;finance_totals.csv,department:salary_eur,finance_totals.csv:department:budget_eur,1,High,Monthly,RH,results_summary,Écart % par département,Investiguer l'écart avec la finance
