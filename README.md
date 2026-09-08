@@ -46,7 +46,7 @@ python engine/engine.py --catalogue catalogue/control_catalogue.csv --data-dir d
 dq-compass/
 │
 ├── dq-compass-app-en/             ✨ NOUVELLE APPLICATION STREAMLIT
-│   ├── app.py                  # Page d'accueil
+│   ├── Home.py                 # Page d'accueil
 │   ├── pages/
 │   │   ├── 1_Upload_Data.py      # Étape 1 : Upload CSV
 │   │   ├── 2_Define_Rules.py     # Étape 2 : Formulaire de règles

@@ -343,6 +343,21 @@ for tab, (cat_key, category) in zip(tabs, templates.items()):
         st.markdown(f"*{category['description']}*")
 
         for template in category["rules"]:
+            is_reconciliation = template.get('logic_type') == 'reconciliation_sum'
+            reference_ready = st.session_state.get('reference_uploaded') and st.session_state.get('reference_df') is not None
+
+            if is_reconciliation and not reference_ready:
+                # No reference file yet: show the template but explain what's
+                # missing instead of a column picker the user can't complete.
+                st.markdown(f"**{template['control_name']}**")
+                st.caption(template.get('description', ''))
+                st.info(
+                    "Upload a reference file first, on the **Upload Data** page "
+                    "('Optional: reference file for reconciliation checks'), then come back here."
+                )
+                st.markdown("---")
+                continue
+
             col1, col2, col3 = st.columns([1, 2, 1])
 
             with col1:
@@ -350,8 +365,29 @@ for tab, (cat_key, category) in zip(tabs, templates.items()):
                 st.caption(template.get('description', ''))
 
             with col2:
+                if is_reconciliation:
+                    # Needs 2 columns from the MAIN dataset (group, value) and
+                    # 2 columns from the REFERENCE dataset (ref_group, ref_value).
+                    ref_columns = list(st.session_state.reference_df.columns)
+                    st.caption(f"Reference file: `{st.session_state.reference_filename}`")
+
+                    rc1, rc2 = st.columns(2)
+                    with rc1:
+                        main_group = st.selectbox("Group column (your data)", [""] + available_columns,
+                                                   key=f"quick_{template['template_id']}_main_group")
+                        ref_group = st.selectbox("Group column (reference file)", [""] + ref_columns,
+                                                  key=f"quick_{template['template_id']}_ref_group")
+                    with rc2:
+                        main_value = st.selectbox("Value column (your data)", [""] + available_columns,
+                                                   key=f"quick_{template['template_id']}_main_value")
+                        ref_value = st.selectbox("Value column (reference file)", [""] + ref_columns,
+                                                  key=f"quick_{template['template_id']}_ref_value")
+
+                    selected_column = f"{main_group}:{main_value}" if main_group and main_value else ""
+                    ref_param = f"{st.session_state.reference_filename}:{ref_group}:{ref_value}" if ref_group and ref_value else ""
+                    fields_complete = bool(main_group and main_value and ref_group and ref_value)
                 # Column selection
-                if template.get('requires_columns', 0) > 1:
+                elif template.get('requires_columns', 0) > 1:
                     # Multiple column selection for composite rules
                     selected_cols = st.multiselect(
                         "Select columns",
@@ -382,25 +418,40 @@ for tab, (cat_key, category) in zip(tabs, templates.items()):
             with col3:
                 st.markdown("")  # Spacing
 
-                # Check if rule ID already exists
-                rule_id = f"{template['template_id']}_{selected_column.replace(':', '_')}" if selected_column else template['template_id']
-                rule_exists = any(r["rule_id"] == rule_id for r in st.session_state.rules)
+                if is_reconciliation:
+                    rule_id = f"{template['template_id']}_{main_group}_{main_value}" if fields_complete else template['template_id']
+                    rule_exists = any(r["rule_id"] == rule_id for r in st.session_state.rules)
+                    can_add = fields_complete and not rule_exists
+                else:
+                    # Check if rule ID already exists
+                    rule_id = f"{template['template_id']}_{selected_column.replace(':', '_')}" if selected_column else template['template_id']
+                    rule_exists = any(r["rule_id"] == rule_id for r in st.session_state.rules)
+                    can_add = bool(selected_column) and not rule_exists
 
                 # Use a form to handle the button click properly
                 add_clicked = st.button(
                     "Add rule" if not rule_exists else "Already added",
                     key=f"quick_add_{template['template_id']}",
-                    disabled=not selected_column or rule_exists,
+                    disabled=not can_add,
                     use_container_width=True
                 )
 
-                if add_clicked and selected_column and not rule_exists:
-                    new_rule = create_rule_from_template(
-                        template=template,
-                        column=selected_column,
-                        dataset_name=st.session_state.uploaded_filename,
-                        rule_id_suffix=selected_column.replace(":", "_")
-                    )
+                if add_clicked and can_add:
+                    if is_reconciliation:
+                        new_rule = create_rule_from_template(
+                            template=template,
+                            column=selected_column,
+                            dataset_name=f"{st.session_state.uploaded_filename};{st.session_state.reference_filename}",
+                            rule_id_suffix=f"{main_group}_{main_value}",
+                            param_override=ref_param
+                        )
+                    else:
+                        new_rule = create_rule_from_template(
+                            template=template,
+                            column=selected_column,
+                            dataset_name=st.session_state.uploaded_filename,
+                            rule_id_suffix=selected_column.replace(":", "_")
+                        )
                     st.session_state.rules.append(new_rule)
                     st.session_state.report_generated = False
                     st.toast(f"Rule {new_rule['rule_id']} added!", icon="✅")
@@ -526,12 +577,21 @@ with col2:
         - **Threshold**: maximum age tolerated, in days
         """)
     elif logic_type == "reconciliation_sum":
-        st.info("""
+        ref_hint = (
+            f"Reference file detected: `{st.session_state.reference_filename}` — it will be added "
+            "to this rule's dataset automatically."
+            if st.session_state.get("reference_uploaded")
+            else "No reference file yet — upload one on the **Upload Data** page first "
+                 "('Optional: reference file for reconciliation checks'), or this rule will ERROR at run time."
+        )
+        st.info(f"""
         **reconciliation_sum**: Compares totals across files
 
         - **Column**: `group_col:value_col` (e.g. `region:balance`)
         - **Param**: `ref_file:ref_group_col:ref_value_col`
         - **Threshold**: max % deviation tolerated per group
+
+        {ref_hint}
         """)
 
 # Fields specific to the selected logic_type
@@ -636,6 +696,12 @@ if st.button("Add this rule", type="primary", use_container_width=True):
             if err.get('suggestion'):
                 st.caption(f"   💡 {err['suggestion']}")
     else:
+        # Reconciliation rules need both the main file and the reference
+        # file listed in `dataset` (';'-separated) so the engine loads both.
+        rule_dataset = st.session_state.uploaded_filename
+        if logic_type == "reconciliation_sum" and st.session_state.get("reference_uploaded"):
+            rule_dataset = f"{st.session_state.uploaded_filename};{st.session_state.reference_filename}"
+
         # Create the rule
         new_rule = {
             "rule_id": rule_id.strip(),
@@ -643,7 +709,7 @@ if st.button("Add this rule", type="primary", use_container_width=True):
             "control_type": control_type,
             "description": description.strip() if description else f"{logic_type} check on {column}",
             "logic_type": logic_type,
-            "dataset": st.session_state.uploaded_filename,
+            "dataset": rule_dataset,
             "column": column.strip(),
             "param": param.strip() if param else "",
             "threshold": threshold.strip() if threshold else "",
@@ -785,7 +851,14 @@ if uploaded_rules is not None:
                             # Fill in any missing optional fields and set the dataset name
                             for col in TEMPLATE_COLUMNS:
                                 rule.setdefault(col, "")
-                            rule["dataset"] = st.session_state.uploaded_filename
+                            # Reconciliation rules need the reference file listed
+                            # too (';'-separated) - overwriting with only the
+                            # main filename here silently broke every imported
+                            # reconciliation_sum rule.
+                            if rule.get("logic_type") == "reconciliation_sum" and st.session_state.get("reference_uploaded"):
+                                rule["dataset"] = f"{st.session_state.uploaded_filename};{st.session_state.reference_filename}"
+                            else:
+                                rule["dataset"] = st.session_state.uploaded_filename
                             rule.setdefault("output_type", "results_summary")
                             st.session_state.rules.append(rule)
                             added += 1

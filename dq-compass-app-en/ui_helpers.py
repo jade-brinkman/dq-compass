@@ -29,6 +29,7 @@ SESSION_KEYS = [
     "data_uploaded", "uploaded_file_path", "uploaded_df", "uploaded_filename",
     "rules", "report_generated", "last_run_results",
     "basic_quality_checks", "gdpr_check", "theme",
+    "reference_uploaded", "reference_file_path", "reference_df", "reference_filename",
 ]
 
 
@@ -49,6 +50,11 @@ def ensure_session_state():
         "rules": [],
         "report_generated": False,
         "last_run_results": None,
+        # Optional second file, used only by reconciliation (DQ06-style) rules
+        "reference_uploaded": False,
+        "reference_file_path": None,
+        "reference_df": None,
+        "reference_filename": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -185,6 +191,32 @@ def inject_base_style():
     .stTabs [aria-selected="true"] {{
         background-color: {RED} !important;
         color: white !important;
+    }}
+    /* The tab label text sits in its own nested p/div, which the earlier
+       broad .stApp text-color rule already colors black explicitly - that
+       beats the parent's white color above (inherited color always loses
+       to an explicit one on the child), so the active red tab showed
+       black-on-red. Force it back to white on the nested elements directly. */
+    .stTabs [aria-selected="true"] p,
+    .stTabs [aria-selected="true"] span,
+    .stTabs [aria-selected="true"] div {{
+        color: white !important;
+    }}
+
+    /* Multiselect "tag" chips (e.g. selected columns in Advanced options):
+       Streamlit's own BaseWeb styling gives them a pale red background with
+       dark text and poor contrast - make them solid brand red with white
+       text/close-icon instead, consistent with the rest of the app's tags. */
+    [data-baseweb="tag"] {{
+        background-color: {RED} !important;
+        border-color: {RED} !important;
+    }}
+    [data-baseweb="tag"] span,
+    [data-baseweb="tag"] div {{
+        color: white !important;
+    }}
+    [data-baseweb="tag"] svg {{
+        fill: white !important;
     }}
 
     /* Dividers */
@@ -488,6 +520,37 @@ def inject_base_style():
     button[kind="primary"] span,
     button[kind="primary"] div {{
         color: white !important;
+    }}
+
+    /* A disabled nav button must always look muted grey, even when it is
+       also type="primary" (happens when a user lands directly on a later
+       page via URL/refresh before completing the prior step: current_page
+       equals that page so type="primary" is set, AND the step guard sets
+       disabled=True at the same time). Without this, the two rules above
+       collide and the button renders as a bright red "active" button that
+       is actually unusable - confusing, and it was reported as unreadable
+       in some renders. This must come AFTER the primary-force block above
+       so it wins the cascade. */
+    .st-key-nav_home button:disabled,
+    .st-key-nav_upload button:disabled,
+    .st-key-nav_rules button:disabled,
+    .st-key-nav_report button:disabled,
+    button[kind="primary"]:disabled,
+    [data-testid="stBaseButton-primary"]:disabled {{
+        background-color: {colors['secondary_bg']} !important;
+        border-color: {colors['border']} !important;
+        color: {colors['grey']} !important;
+        opacity: 0.6 !important;
+        cursor: not-allowed !important;
+    }}
+    .st-key-nav_home button:disabled p, .st-key-nav_home button:disabled span,
+    .st-key-nav_upload button:disabled p, .st-key-nav_upload button:disabled span,
+    .st-key-nav_rules button:disabled p, .st-key-nav_rules button:disabled span,
+    .st-key-nav_report button:disabled p, .st-key-nav_report button:disabled span,
+    button[kind="primary"]:disabled p, button[kind="primary"]:disabled span,
+    [data-testid="stBaseButton-primary"]:disabled p,
+    [data-testid="stBaseButton-primary"]:disabled span {{
+        color: {colors['grey']} !important;
     }}
 
     /* Reset button special styling */

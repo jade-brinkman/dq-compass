@@ -370,5 +370,77 @@ if st.session_state.data_uploaded:
     You can upload a new file above to replace the current data.
     """)
 
+    st.markdown("---")
+
+    # =====================================================
+    # SECTION: Optional reference file (reconciliation only)
+    # =====================================================
+    with st.expander("Optional: reference file for reconciliation checks", expanded=False):
+        st.markdown(
+            "Only needed if you plan to add a **Reconciliation** rule (e.g. DQ06-style: "
+            "compare totals in your data above against a source-of-truth file). "
+            "Every other rule type ignores this file — skip it otherwise."
+        )
+
+        reference_file = st.file_uploader(
+            "Choose the reference/source-of-truth CSV file",
+            type=['csv'],
+            key="reference_file_uploader",
+            help="A file with one row per group (e.g. region, category) and a total/value column to compare against."
+        )
+
+        if reference_file is not None:
+            try:
+                ref_sample = reference_file.read(10000).decode('utf-8', errors='ignore')
+                reference_file.seek(0)
+
+                ref_best_sep = ','
+                ref_max_cols = 0
+                for sep in [',', ';', '\t', '|']:
+                    try:
+                        test_df = pd.read_csv(pd.io.common.StringIO(ref_sample), sep=sep, nrows=5)
+                        if len(test_df.columns) > ref_max_cols:
+                            ref_max_cols = len(test_df.columns)
+                            ref_best_sep = sep
+                    except Exception:
+                        continue
+
+                ref_df = pd.read_csv(reference_file, sep=ref_best_sep, dtype=str, keep_default_na=False)
+                if ref_df.columns.duplicated().any():
+                    ref_df, _ = deduplicate_columns(ref_df)
+
+                st.dataframe(ref_df.head(5), use_container_width=True)
+                st.caption(f"{len(ref_df):,} row(s) x {len(ref_df.columns)} column(s)")
+
+                # Reference file must live in the same folder as the main data
+                # file so the engine's data_dir scan finds both (see
+                # `dataset` = "main.csv;reference.csv" on the reconciliation rule).
+                temp_dir = Path(tempfile.gettempdir()) / "dq_compass" / "data"
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                ref_safe_filename = reference_file.name.replace(" ", "_")
+                if ref_safe_filename == st.session_state.uploaded_filename:
+                    st.error(
+                        "The reference file must have a different name from the main data file "
+                        f"(`{st.session_state.uploaded_filename}`) so the engine can tell them apart."
+                    )
+                else:
+                    ref_file_path = temp_dir / ref_safe_filename
+                    ref_df.to_csv(ref_file_path, index=False)
+
+                    st.session_state.reference_uploaded = True
+                    st.session_state.reference_file_path = str(ref_file_path)
+                    st.session_state.reference_filename = ref_safe_filename
+                    st.session_state.reference_df = ref_df
+
+                    st.success(f"Reference file ready: `{ref_safe_filename}`. You can now use a Reconciliation rule on the Define Rules page.")
+            except Exception as e:
+                st.error(f"Error while loading the reference file: {str(e)}")
+
+        elif st.session_state.get("reference_uploaded"):
+            st.info(f"Reference file already set: `{st.session_state.reference_filename}` "
+                    f"({len(st.session_state.reference_df):,} rows). Upload a new one above to replace it.")
+
+    st.markdown("---")
+
     if st.button("Continue to Define Rules", type="primary", use_container_width=True):
         st.switch_page("pages/2_Define_Rules.py")

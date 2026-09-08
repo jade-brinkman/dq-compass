@@ -206,12 +206,30 @@ TEMPLATES = {
     "reconciliation": {
         "name": "Reconciliation",
         "description": (
-            "Compare totals across two files (e.g. detail vs. source-of-truth totals). "
-            "This always needs a second reference file and specific group/value columns, "
-            "so there is no one-click template here — use the custom rule form below with "
-            "logic_type 'reconciliation_sum'."
+            "Compare totals in your data against a second, source-of-truth file "
+            "(e.g. detail vs. reference totals per region). Upload the reference "
+            "file first, in the 'Optional: reference file for reconciliation checks' "
+            "section on the Upload Data page — it then appears below."
         ),
-        "rules": [],
+        "rules": [
+            {
+                "template_id": "TPL_RECONCILE_SUM",
+                "control_name": "Totals match the reference file",
+                "description": (
+                    "For each group, the sum of the value column in your data must match "
+                    "the corresponding total in the reference file, within the tolerance below."
+                ),
+                "control_type": "Reconciliation",
+                "logic_type": "reconciliation_sum",
+                "severity": "High",
+                "suggested_columns": [],
+                "requires_columns": 2,  # group column, value column (main dataset)
+                "default_param": "",  # filled in from the reference file's own columns
+                "default_threshold": "1",
+                "kpi_template": "Number of groups exceeding the deviation threshold",
+                "remediation_action": "Investigate the discrepancy between the two sources for the affected group(s).",
+            },
+        ],
     },
 }
 
@@ -241,9 +259,18 @@ def find_matching_columns(available_columns, suggested_columns) -> list:
     return matches
 
 
-def create_rule_from_template(template: dict, column: str, dataset_name: str, rule_id_suffix: str) -> dict:
+def create_rule_from_template(template: dict, column: str, dataset_name: str, rule_id_suffix: str,
+                               param_override: str = None) -> dict:
     """Builds a full rule dict (same schema as the custom rule form) from a
-    quick-add template and the column(s) the user picked."""
+    quick-add template and the column(s) the user picked.
+
+    `dataset_name` may itself contain a ';'-separated list of files (main
+    data file + reference file), as needed by reconciliation_sum — the
+    engine's `dataset` column already supports that format.
+    `param_override` lets reconciliation supply its 'ref_file:ref_group:ref_value'
+    param, which depends on the reference file's own columns and can't be a
+    static template default.
+    """
     rule_id = f"{template['template_id']}_{rule_id_suffix}"
 
     return {
@@ -254,7 +281,7 @@ def create_rule_from_template(template: dict, column: str, dataset_name: str, ru
         "logic_type": template["logic_type"],
         "dataset": dataset_name,
         "column": column,
-        "param": template.get("default_param", ""),
+        "param": param_override if param_override is not None else template.get("default_param", ""),
         "threshold": template.get("default_threshold", ""),
         "severity": template.get("severity", "Medium"),
         "frequency": "Daily",

@@ -25,7 +25,7 @@ chmod +x run.sh
 
 ### Méthode alternative (toutes plateformes)
 ```bash
-streamlit run app.py
+streamlit run Home.py
 ```
 
 L'application s'ouvre automatiquement à : **http://localhost:8501**

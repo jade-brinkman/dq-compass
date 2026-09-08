@@ -39,6 +39,45 @@ def _status_row_colors(statuses):
     return [STATUS_COLORS.get(s, GREY) for s in statuses]
 
 
+# ---------------------------------------------------------------------------
+# BF-REP-01 — traffic-light scorecard, same rule as the Streamlit report
+# (pages/3_Quality_Report.py::_traffic_light) so a rule's color never changes
+# depending on whether you're looking at the app or the PDF export:
+#   green  : failed_records == 0
+#   red    : severity High and failing, OR failure rate >= 5%
+#   orange : failing, severity Medium/Low, failure rate < 5%, or a
+#            configuration ERROR (not a data failure)
+# BNF-04 caps the report at 3 colors.
+# ---------------------------------------------------------------------------
+_TRAFFIC_LIGHT_HEX = {"green": "#00CC96", "orange": "#FFA15A", "red": "#EF553B"}
+
+
+def _traffic_light_pdf(row) -> str:
+    """Returns a hex color string ('#RRGGBB'), usable both in ReportLab
+    TableStyle commands (via colors.HexColor(...)) and inline in Paragraph
+    markup (<font color='...'>)."""
+    status = row.get("status")
+    if status == "ERROR":
+        return _TRAFFIC_LIGHT_HEX["orange"]
+
+    try:
+        failed = int(row.get("failed_records"))
+    except (TypeError, ValueError):
+        failed = 0
+    try:
+        total = int(row.get("total_records"))
+    except (TypeError, ValueError):
+        total = 0
+
+    if failed == 0:
+        return _TRAFFIC_LIGHT_HEX["green"]
+    if row.get("severity") == "High":
+        return _TRAFFIC_LIGHT_HEX["red"]
+
+    fail_rate = (failed / total * 100) if total else 100.0
+    return _TRAFFIC_LIGHT_HEX["orange"] if fail_rate < 5 else _TRAFFIC_LIGHT_HEX["red"]
+
+
 def _create_pie_chart_image(summary_df) -> bytes:
     """Create a pie chart showing PASS/FAIL/ERROR breakdown as PNG bytes using matplotlib."""
     status_counts = summary_df['status'].value_counts()
@@ -248,6 +287,48 @@ def generate_pdf_report(results: dict, filename: str, total_rules: int, passed: 
 
     # Get summary DataFrame for charts and tables
     summary_df = results["summary"]
+
+    # --- Scorecard (BF-REP-01) ---
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Scorecard", h2_style))
+    story.append(Paragraph(
+        "Green = no failure &nbsp;-&nbsp; Orange = failing, Medium/Low severity, under 5% "
+        "failure rate, or a configuration error &nbsp;-&nbsp; Red = High severity failure, "
+        "or failure rate at/above 5%",
+        small_style,
+    ))
+    story.append(Spacer(1, 4))
+
+    badge_style = ParagraphStyle(
+        "DQBadge", parent=styles["Normal"], fontSize=8, leading=10, textColor=BRAND_BLACK,
+    )
+    n_cols = 4
+    badge_rows = []
+    current_row = []
+    for _, r in summary_df.iterrows():
+        dot_hex = _traffic_light_pdf(r)
+        label = f"<font color='{dot_hex}'>●</font> {_truncate(str(r.get('rule_id', '')), 14)} " \
+                f"<font color='#999999'>· {_truncate(str(r.get('dimension', '')), 14)}</font>"
+        current_row.append(Paragraph(label, badge_style))
+        if len(current_row) == n_cols:
+            badge_rows.append(current_row)
+            current_row = []
+    if current_row:
+        while len(current_row) < n_cols:
+            current_row.append("")
+        badge_rows.append(current_row)
+
+    if badge_rows:
+        badge_table = Table(badge_rows, colWidths=[46.5 * mm] * n_cols)
+        badge_table.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#DDDDDD")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#EEEEEE")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(badge_table)
 
     # --- Charts section ---
     story.append(Paragraph("Charts", h2_style))

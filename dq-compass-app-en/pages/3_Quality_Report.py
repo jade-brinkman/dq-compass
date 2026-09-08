@@ -20,14 +20,15 @@ from pdf_report import generate_pdf_report
 #   green  : failed_records == 0
 #   red    : severity High and failing, OR failure rate >= 5%
 #   orange : failing, severity Medium/Low, failure rate < 5%
-# (An ERROR status — a configuration issue, not a data failure — is always
-# shown red: it still needs immediate attention, and BNF-04 caps the report
-# at 3 colors.)
+# (An ERROR status — a configuration issue, not a data failure — uses the
+# same orange as the PASS/FAIL/ERROR charts and the PDF export below, so a
+# given rule's color never changes depending on which part of the report
+# you're looking at. BNF-04 still caps the report at 3 colors.)
 # ---------------------------------------------------------------------------
 def _traffic_light(row) -> tuple:
     status = row.get("status")
     if status == "ERROR":
-        return "red", "#EF553B"
+        return "orange", "#FFA15A"
 
     failed = row.get("failed_records")
     total = row.get("total_records")
@@ -166,8 +167,8 @@ if st.session_state.report_generated and st.session_state.last_run_results:
     # =====================================================
     st.subheader("Scorecard")
     st.caption(
-        "Green = no failure - Orange = failing, Medium/Low severity, under 5% failure rate - "
-        "Red = High severity failure, or failure rate at/above 5%"
+        "Green = no failure - Orange = failing, Medium/Low severity, under 5% failure rate, "
+        "or a configuration error - Red = High severity failure, or failure rate at/above 5%"
     )
 
     badge_html = ["<div style='display:flex;flex-wrap:wrap;gap:8px;'>"]
@@ -218,10 +219,10 @@ if st.session_state.report_generated and st.session_state.last_run_results:
             )
 
             fig_pie.update_layout(
-                height=380,
+                height=430,
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
-                margin=dict(t=20, b=60, l=20, r=20),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.12, xanchor="center", x=0.5),
+                margin=dict(t=20, b=100, l=20, r=20),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
             )
@@ -246,12 +247,12 @@ if st.session_state.report_generated and st.session_state.last_run_results:
             )
 
             fig_bar.update_layout(
-                height=380,
+                height=430,
                 xaxis_title="",
                 yaxis_title="Rules",
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-                margin=dict(t=20, b=60, l=50, r=20),
+                legend=dict(orientation="h", yanchor="top", y=-0.35, xanchor="center", x=0.5),
+                margin=dict(t=20, b=120, l=50, r=20),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
             )
@@ -343,10 +344,13 @@ if st.session_state.report_generated and st.session_state.last_run_results:
     display_df.columns = ['Status', 'Rule ID', 'Name', 'Dimension', 'Severity',
                           'Total', 'Failed', 'KPI value', 'KPI']
 
+    # Size the grid to the actual row count (capped) instead of a fixed
+    # height, so a handful of rules don't leave a block of empty grid space.
+    detail_height = min(400, 38 + 35 * len(display_df) + 3)
     st.dataframe(
         display_df,
         use_container_width=True,
-        height=400
+        height=detail_height
     )
 
     # =====================================================
@@ -364,7 +368,8 @@ if st.session_state.report_generated and st.session_state.last_run_results:
         "Dataset(s)": r.get("dataset", ""),
         "Column(s)": r.get("column", ""),
     } for r in st.session_state.rules]
-    st.dataframe(pd.DataFrame(coverage_rows), use_container_width=True, height=250)
+    coverage_height = min(250, 38 + 35 * len(coverage_rows) + 3)
+    st.dataframe(pd.DataFrame(coverage_rows), use_container_width=True, height=coverage_height)
 
     # =====================================================
     # SECTION: Export options (CSV, JSON, PDF, evidence pack)
