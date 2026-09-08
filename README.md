@@ -1,4 +1,4 @@
-# DQ Compass - Universal Data Quality Platform
+# DQ Compass: Universal Data Quality Platform
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
@@ -6,7 +6,7 @@
 ![Plotly](https://img.shields.io/badge/Plotly-3F4F75?logo=plotly&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C?logo=matplotlib&logoColor=white)
 
-<img width="887" height="111" alt="image" src="https://github.com/user-attachments/assets/78064138-f583-411d-be03-c3457aa7c24f" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/dd661ef5-20db-49c5-9fec-a4ac85c34c2d" />
 
 ## Table of contents
 
@@ -117,8 +117,8 @@ dq-compass/
 
 ### 1. Upload Data
 
-<img width="919" height="407" alt="image" src="https://github.com/user-attachments/assets/e5d4639d-0715-42e0-a104-d003193720f1" />
-<img width="898" height="199" alt="image" src="https://github.com/user-attachments/assets/20dc71e0-421f-433c-926c-d2167343dc99" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/e5d4639d-0715-42e0-a104-d003193720f1" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/20dc71e0-421f-433c-926c-d2167343dc99" />
 
 - CSV file upload
 - Automatic separator detection (`,` `;` `\t` `|`)
@@ -129,11 +129,11 @@ The automatic wide-to-long transformation makes it possible to process pivoted d
 
 An initial automatic analysis is run, letting the user get a first look at the dataset's characteristics.
 
-<img width="896" height="183" alt="image" src="https://github.com/user-attachments/assets/c124430a-9045-493a-94fc-4988d6c0cf28" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/c124430a-9045-493a-94fc-4988d6c0cf28" />
 
 The user can then select the scope of the analysis.
 
-<img width="893" height="383" alt="image" src="https://github.com/user-attachments/assets/982c5d83-234d-4162-ad81-98dd0eb3c7f0" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/982c5d83-234d-4162-ad81-98dd0eb3c7f0" />
 
 ### 2. Define Rules
 
@@ -144,15 +144,15 @@ The user can then select the scope of the analysis.
 
 This screen lets you select the basic quality rules or create your own custom rules.
 
-<img width="891" height="370" alt="image" src="https://github.com/user-attachments/assets/3c668dda-0111-45bf-9a70-07800f599ee8" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/3c668dda-0111-45bf-9a70-07800f599ee8" />
 
 
-<img width="889" height="331" alt="image" src="https://github.com/user-attachments/assets/e913c274-2c12-4840-a54e-701f1724efc6" />
-<img width="888" height="421" alt="image" src="https://github.com/user-attachments/assets/589c142f-0601-4c06-99ab-82c0849fa525" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/e913c274-2c12-4840-a54e-701f1724efc6" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/589c142f-0601-4c06-99ab-82c0849fa525" />
 
 If the user already has a full catalogue of standardized rules, it can be imported directly into the app. A template is available for download to help build that catalogue.
 
-<img width="889" height="150" alt="image" src="https://github.com/user-attachments/assets/5960bf87-ac46-4fbb-b7ae-92bfd9435654" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/5960bf87-ac46-4fbb-b7ae-92bfd9435654" />
 
 The form keeps a standardized structure, the same regardless of the business domain, while staying flexible enough to adapt to very different use cases.
 
@@ -165,13 +165,13 @@ The form keeps a standardized structure, the same regardless of the business dom
 - CSV / JSON export of results and exceptions
 - Automatic recommendations based on the results
 
-<img width="897" height="299" alt="image" src="https://github.com/user-attachments/assets/8121a62c-39ee-4099-84a1-b6cf9b694cb8" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/8121a62c-39ee-4099-84a1-b6cf9b694cb8" />
 
-<img width="868" height="125" alt="image" src="https://github.com/user-attachments/assets/9853015e-5f99-49fb-b5df-9a9ed7535ece" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/9853015e-5f99-49fb-b5df-9a9ed7535ece" />
 
 Once the report is generated, the user can download it in several formats.
 
-<img width="887" height="102" alt="image" src="https://github.com/user-attachments/assets/cd994517-a944-4b3f-a0d4-2386191d9a46" />
+<img width="850" alt="image" src="https://github.com/user-attachments/assets/cd994517-a944-4b3f-a0d4-2386191d9a46" />
 
 ---
 
