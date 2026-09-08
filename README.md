@@ -1,4 +1,4 @@
-# DQ Compass: Universal Data Quality Platform
+# DQ Compass - Universal Data Quality Platform
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
