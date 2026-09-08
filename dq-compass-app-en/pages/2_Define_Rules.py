@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -10,6 +11,259 @@ from default_rules_catalog import (
     get_all_templates, find_matching_columns, create_rule_from_template,
     get_rule_writing_tips, RULE_WRITING_TIPS
 )
+
+
+# =====================================================
+# VALIDATION FUNCTIONS FOR CUSTOM RULES
+# =====================================================
+def validate_column_exists(column: str, available_columns: list, logic_type: str) -> tuple[bool, str, str]:
+    """
+    Validate that column(s) exist in the dataset.
+    Returns (is_valid, error_message, suggestion).
+    """
+    if not column or column.strip() == "":
+        return False, "Column is required.", ""
+
+    # For composite rules, columns are separated by ':'
+    if logic_type in ["unique_composite", "conditional_equals", "reconciliation_sum"]:
+        cols = [c.strip() for c in column.split(":")]
+        missing_cols = [c for c in cols if c and c not in available_columns]
+
+        if missing_cols:
+            # Find similar column names for suggestion
+            suggestions = []
+            for missing in missing_cols:
+                similar = find_similar_columns(missing, available_columns)
+                if similar:
+                    suggestions.append(f"'{missing}' → did you mean '{similar[0]}'?")
+
+            suggestion_text = " | ".join(suggestions) if suggestions else ""
+            return False, f"Column(s) not found: {', '.join(missing_cols)}", suggestion_text
+    else:
+        if column not in available_columns:
+            similar = find_similar_columns(column, available_columns)
+            suggestion = f"Did you mean '{similar[0]}'?" if similar else ""
+            return False, f"Column '{column}' does not exist in the data.", suggestion
+
+    return True, "", ""
+
+
+def find_similar_columns(target: str, available: list, max_suggestions: int = 3) -> list:
+    """Find similar column names using simple string matching."""
+    target_lower = target.lower()
+    scored = []
+
+    for col in available:
+        col_lower = col.lower()
+        # Exact substring match
+        if target_lower in col_lower or col_lower in target_lower:
+            scored.append((col, 0))
+        # Starts with same letters
+        elif col_lower.startswith(target_lower[:3]) if len(target_lower) >= 3 else False:
+            scored.append((col, 1))
+        # Contains similar characters
+        else:
+            common = sum(1 for c in target_lower if c in col_lower)
+            if common >= len(target_lower) * 0.5:
+                scored.append((col, 2))
+
+    scored.sort(key=lambda x: x[1])
+    return [col for col, _ in scored[:max_suggestions]]
+
+
+def validate_regex_param(param: str, rule_id: str) -> tuple[bool, str, str]:
+    """
+    Validate that a regex pattern is provided and syntactically correct.
+    Returns (is_valid, error_message, suggestion).
+    """
+    if not param or param.strip() == "":
+        return False, "Regex pattern is required for 'regex' rule type.", \
+            "Example patterns: ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$ (email), ^\\d{5}$ (5 digits)"
+
+    try:
+        re.compile(param)
+        return True, "", ""
+    except re.error as e:
+        return False, f"Invalid regex pattern: {str(e)}", \
+            "Check your regex syntax. Common issues: unescaped special chars (use \\\\ for \\), unmatched parentheses."
+
+
+def validate_threshold(threshold: str, logic_type: str) -> tuple[bool, str, str]:
+    """
+    Validate that threshold is a valid number when required.
+    Returns (is_valid, error_message, suggestion).
+    """
+    if not threshold or threshold.strip() == "":
+        # Threshold is optional for most rules (defaults to 0)
+        return True, "", ""
+
+    try:
+        val = float(threshold)
+        if val < 0:
+            return False, "Threshold cannot be negative.", "Use a value >= 0"
+        return True, "", ""
+    except ValueError:
+        return False, f"Threshold must be a number, got '{threshold}'.", "Example: 0, 5, 1.5"
+
+
+def validate_conditional_equals_format(column: str, param: str) -> tuple[bool, str, str]:
+    """
+    Validate conditional_equals specific format.
+    column: col_condition:col_target
+    param: val_condition:val_target
+    """
+    errors = []
+    suggestions = []
+
+    if ":" not in column:
+        errors.append("Column must be in format 'condition_col:target_col'")
+        suggestions.append("Example: status:balance")
+    elif len(column.split(":")) != 2:
+        errors.append("Column must contain exactly 2 columns separated by ':'")
+        suggestions.append("Format: condition_column:target_column")
+
+    if not param or param.strip() == "":
+        errors.append("Param is required for conditional_equals")
+        suggestions.append("Format: condition_value:target_value (e.g., closed:0)")
+    elif ":" not in param:
+        errors.append("Param must be in format 'condition_value:target_value'")
+        suggestions.append("Example: closed:0")
+    elif len(param.split(":")) != 2:
+        errors.append("Param must contain exactly 2 values separated by ':'")
+        suggestions.append("Format: condition_value:expected_target_value")
+
+    if errors:
+        return False, " | ".join(errors), " | ".join(suggestions)
+    return True, "", ""
+
+
+def validate_unique_composite_format(column: str) -> tuple[bool, str, str]:
+    """
+    Validate unique_composite specific format.
+    column: col1:col2[:col3...]
+    """
+    if ":" not in column:
+        return False, "unique_composite requires multiple columns separated by ':'", \
+            "Example: series_id:year or client_id:product:date"
+
+    cols = [c.strip() for c in column.split(":")]
+    if len(cols) < 2:
+        return False, "At least 2 columns are required for unique_composite", \
+            "Format: column1:column2[:column3...]"
+
+    empty_cols = [i+1 for i, c in enumerate(cols) if not c]
+    if empty_cols:
+        return False, f"Empty column name at position {empty_cols}", \
+            "Remove extra ':' characters"
+
+    return True, "", ""
+
+
+def validate_max_age_days_param(param: str) -> tuple[bool, str, str]:
+    """
+    Validate max_age_days param (reference date).
+    """
+    if not param or param.strip() == "":
+        return False, "Reference date is required for max_age_days", \
+            "Use 'today' or an ISO date (e.g., 2024-01-15)"
+
+    param = param.strip().lower()
+    if param == "today":
+        return True, "", ""
+
+    # Try to parse as ISO date
+    try:
+        from datetime import datetime
+        datetime.fromisoformat(param.upper() if param[0].isdigit() else param)
+        return True, "", ""
+    except (ValueError, IndexError):
+        return False, f"Invalid date format: '{param}'", \
+            "Use 'today' or ISO format: YYYY-MM-DD (e.g., 2024-01-15)"
+
+
+def validate_reconciliation_sum_format(column: str, param: str) -> tuple[bool, str, str]:
+    """
+    Validate reconciliation_sum specific format.
+    column: group_col:value_col
+    param: ref_file:ref_group_col:ref_value_col
+    """
+    errors = []
+    suggestions = []
+
+    if ":" not in column:
+        errors.append("Column must be in format 'group_col:value_col'")
+        suggestions.append("Example: region:amount")
+    elif len(column.split(":")) != 2:
+        errors.append("Column must contain exactly 2 columns (group:value)")
+        suggestions.append("Format: grouping_column:value_column")
+
+    if not param or param.strip() == "":
+        errors.append("Param is required for reconciliation_sum")
+        suggestions.append("Format: ref_file:ref_group_col:ref_value_col")
+    elif param.count(":") != 2:
+        errors.append("Param must be in format 'ref_file:ref_group_col:ref_value_col'")
+        suggestions.append("Example: reference.csv:region:expected_amount")
+
+    if errors:
+        return False, " | ".join(errors), " | ".join(suggestions)
+    return True, "", ""
+
+
+def validate_custom_rule(rule_id: str, control_name: str, logic_type: str,
+                         column: str, param: str, threshold: str,
+                         available_columns: list, existing_rules: list) -> list[dict]:
+    """
+    Comprehensive validation of a custom rule.
+    Returns a list of error dicts with 'message' and 'suggestion' keys.
+    """
+    errors = []
+
+    # Basic required fields
+    if not rule_id or rule_id.strip() == "":
+        errors.append({"message": "Rule ID is required", "suggestion": "Example: DQ01, RULE_EMAIL, CHK_001"})
+    elif any(r["rule_id"] == rule_id for r in existing_rules):
+        errors.append({"message": f"Rule ID '{rule_id}' already exists", "suggestion": "Choose a unique identifier"})
+
+    if not control_name or control_name.strip() == "":
+        errors.append({"message": "Rule name is required", "suggestion": "Example: Email format validation"})
+
+    # Column validation
+    is_valid, msg, suggestion = validate_column_exists(column, available_columns, logic_type)
+    if not is_valid:
+        errors.append({"message": msg, "suggestion": suggestion})
+
+    # Logic-type specific validation
+    if logic_type == "regex":
+        is_valid, msg, suggestion = validate_regex_param(param, rule_id or "rule")
+        if not is_valid:
+            errors.append({"message": msg, "suggestion": suggestion})
+
+    elif logic_type == "conditional_equals":
+        is_valid, msg, suggestion = validate_conditional_equals_format(column, param)
+        if not is_valid:
+            errors.append({"message": msg, "suggestion": suggestion})
+
+    elif logic_type == "unique_composite":
+        is_valid, msg, suggestion = validate_unique_composite_format(column)
+        if not is_valid:
+            errors.append({"message": msg, "suggestion": suggestion})
+
+    elif logic_type == "max_age_days":
+        is_valid, msg, suggestion = validate_max_age_days_param(param)
+        if not is_valid:
+            errors.append({"message": msg, "suggestion": suggestion})
+
+    elif logic_type == "reconciliation_sum":
+        is_valid, msg, suggestion = validate_reconciliation_sum_format(column, param)
+        if not is_valid:
+            errors.append({"message": msg, "suggestion": suggestion})
+
+    # Threshold validation (for all types)
+    is_valid, msg, suggestion = validate_threshold(threshold, logic_type)
+    if not is_valid:
+        errors.append({"message": msg, "suggestion": suggestion})
+
+    return errors
 
 st.set_page_config(page_title="Define Rules", layout="wide", initial_sidebar_state="collapsed")
 
@@ -21,9 +275,20 @@ render_tag("02", "Define rules")
 st.title("Define Quality Rules")
 
 # Check that data was uploaded
-if not st.session_state.data_uploaded:
+if not st.session_state.data_uploaded or st.session_state.uploaded_df is None:
     st.warning("Please upload your data first on the **Upload Data** page.")
     st.stop()
+
+# Initialize session state for success messages and form reset
+if 'rule_added_message' not in st.session_state:
+    st.session_state.rule_added_message = None
+if 'form_key_suffix' not in st.session_state:
+    st.session_state.form_key_suffix = 0
+
+# Show success message if a rule was just added
+if st.session_state.rule_added_message:
+    st.success(st.session_state.rule_added_message)
+    st.session_state.rule_added_message = None  # Clear after showing
 
 st.markdown(f"""
 Define quality rules for: **`{st.session_state.uploaded_filename}`**
@@ -121,12 +386,15 @@ for tab, (cat_key, category) in zip(tabs, templates.items()):
                 rule_id = f"{template['template_id']}_{selected_column.replace(':', '_')}" if selected_column else template['template_id']
                 rule_exists = any(r["rule_id"] == rule_id for r in st.session_state.rules)
 
-                if st.button(
+                # Use a form to handle the button click properly
+                add_clicked = st.button(
                     "Add rule" if not rule_exists else "Already added",
                     key=f"quick_add_{template['template_id']}",
                     disabled=not selected_column or rule_exists,
                     use_container_width=True
-                ):
+                )
+
+                if add_clicked and selected_column and not rule_exists:
                     new_rule = create_rule_from_template(
                         template=template,
                         column=selected_column,
@@ -135,75 +403,12 @@ for tab, (cat_key, category) in zip(tabs, templates.items()):
                     )
                     st.session_state.rules.append(new_rule)
                     st.session_state.report_generated = False
-                    st.success(f"Rule '{new_rule['rule_id']}' added!")
-                    st.rerun()
+                    st.toast(f"Rule {new_rule['rule_id']} added!", icon="✅")
 
             st.markdown("---")
 
-st.markdown("---")
-
 # =====================================================
-# SECTION: Currently defined rules (with individual deletion)
-# =====================================================
-st.subheader("Currently Defined Rules")
-
-if len(st.session_state.rules) == 0:
-    st.info("No rules defined yet. Use the quick-add templates above or create a custom rule below.")
-else:
-    st.markdown(f"**{len(st.session_state.rules)} rule(s) defined**")
-
-    # Show the rules as a table with delete buttons
-    for idx, rule in enumerate(st.session_state.rules):
-        col1, col2, col3, col4, col5, col6, col7 = st.columns([0.5, 1.5, 2, 1.5, 1, 1, 0.8])
-
-        with col1:
-            st.markdown(f"**{idx + 1}**")
-
-        with col2:
-            st.markdown(f"`{rule['rule_id']}`")
-
-        with col3:
-            st.markdown(rule['control_name'])
-
-        with col4:
-            st.markdown(f"*{rule['logic_type']}*")
-
-        with col5:
-            st.markdown(rule['control_type'])
-
-        with col6:
-            severity_labels = {"High": "[!]", "Medium": "[~]", "Low": "[-]"}
-            st.markdown(f"{severity_labels.get(rule['severity'], '')} {rule['severity']}")
-
-        with col7:
-            if st.button("X", key=f"delete_rule_{idx}", help=f"Delete rule {rule['rule_id']}"):
-                st.session_state.rules.pop(idx)
-                st.session_state.report_generated = False
-                st.rerun()
-
-    st.markdown("---")
-
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("Remove all rules", type="secondary"):
-            st.session_state.rules = []
-            st.session_state.report_generated = False
-            st.rerun()
-
-    with col2:
-        # Export rules as JSON
-        if st.download_button(
-            label="Export rules (JSON)",
-            data=json.dumps(st.session_state.rules, indent=2, ensure_ascii=False),
-            file_name="dq_rules.json",
-            mime="application/json"
-        ):
-            st.success("Rules exported.")
-
-st.markdown("---")
-
-# =====================================================
-# SECTION: Tips and recommendations
+# SECTION: Tips and recommendations (moved up, before custom rules)
 # =====================================================
 with st.expander("Tips for writing quality rules", expanded=False):
     st.markdown("**Best practices for effective quality rules**")
@@ -221,6 +426,9 @@ st.markdown("---")
 st.subheader("Create a Custom Rule")
 st.markdown("*Define your own business-specific quality rules using the form below.*")
 
+# Form key suffix for resetting form fields after adding a rule
+fk = st.session_state.form_key_suffix
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -228,28 +436,28 @@ with col1:
         "Rule ID *",
         placeholder="e.g. DQ01",
         help="Unique rule identifier (e.g. DQ01, RULE_001, CHK_EMAIL)",
-        key="f_rule_id"
+        key=f"f_rule_id_{fk}"
     )
 
     control_name = st.text_input(
         "Rule name *",
         placeholder="e.g. Email completeness",
         help="Descriptive name for the rule",
-        key="f_control_name"
+        key=f"f_control_name_{fk}"
     )
 
     control_type = st.selectbox(
         "Quality dimension *",
         ["Completeness", "Validity", "Uniqueness", "Consistency", "Freshness", "Reconciliation"],
         help="Quality control category",
-        key="f_control_type"
+        key=f"f_control_type_{fk}"
     )
 
     severity = st.selectbox(
         "Severity *",
         ["High", "Medium", "Low"],
         help="Criticality level of the rule",
-        key="f_severity"
+        key=f"f_severity_{fk}"
     )
 
 with col2:
@@ -265,7 +473,7 @@ with col2:
             "reconciliation_sum"
         ],
         help="Type of check to apply",
-        key="f_logic_type"
+        key=f"f_logic_type_{fk}"
     )
 
     # Dynamic instructions based on logic_type
@@ -337,24 +545,27 @@ with col3:
             "Column *",
             [""] + available_columns,
             help="Select the column to check",
-            key="f_column_select"
+            key=f"f_column_select_{fk}"
         )
     elif logic_type in ["unique_composite", "conditional_equals", "reconciliation_sum"]:
         column = st.text_input(
             "Column(s) *",
             placeholder="e.g. col1:col2",
             help="Columns separated by ':', depending on the rule type",
-            key="f_column_text"
+            key=f"f_column_text_{fk}"
         )
     else:
-        column = st.text_input("Column *", key="f_column_text")
+        column = st.text_input("Column *", key=f"f_column_text_{fk}")
 
 with col4:
+    # Param is required for regex, max_age_days, conditional_equals, reconciliation_sum
+    param_required = logic_type in ["regex", "max_age_days", "conditional_equals", "reconciliation_sum"]
+    param_label = "Param *" if param_required else "Param"
     param = st.text_input(
-        "Param",
+        param_label,
         placeholder="Depends on the rule type",
         help="Parameter specific to the rule type (see instructions above)",
-        key="f_param"
+        key=f"f_param_{fk}"
     )
 
 with col5:
@@ -362,14 +573,14 @@ with col5:
         "Threshold",
         placeholder="e.g. 0, 5, 1.5",
         help="Tolerance threshold (number or %)",
-        key="f_threshold"
+        key=f"f_threshold_{fk}"
     )
 
 description = st.text_area(
     "Description",
     placeholder="Detailed description of the rule (optional)",
     height=80,
-    key="f_description"
+    key=f"f_description_{fk}"
 )
 
 col_owner, col_freq, col_kpi = st.columns(3)
@@ -379,7 +590,7 @@ with col_owner:
         "Owner",
         value="Data Quality Team",
         help="Team or person responsible for the rule",
-        key="f_owner"
+        key=f"f_owner_{fk}"
     )
 
 with col_freq:
@@ -387,7 +598,7 @@ with col_freq:
         "Frequency",
         ["Daily", "Weekly", "Monthly", "On-demand"],
         help="Recommended execution frequency",
-        key="f_frequency"
+        key=f"f_frequency_{fk}"
     )
 
 with col_kpi:
@@ -395,34 +606,35 @@ with col_kpi:
         "KPI",
         placeholder="e.g. Completeness rate >= 99%",
         help="Target performance indicator",
-        key="f_kpi"
+        key=f"f_kpi_{fk}"
     )
 
 remediation = st.text_area(
     "Remediation action",
     placeholder="What to do when this rule fails (optional)",
     height=60,
-    key="f_remediation"
+    key=f"f_remediation_{fk}"
 )
 
 if st.button("Add this rule", type="primary", use_container_width=True):
-    # Validation
-    errors = []
+    # Comprehensive validation
+    validation_errors = validate_custom_rule(
+        rule_id=rule_id,
+        control_name=control_name,
+        logic_type=logic_type,
+        column=column,
+        param=param,
+        threshold=threshold,
+        available_columns=available_columns,
+        existing_rules=st.session_state.rules
+    )
 
-    if not rule_id or rule_id.strip() == "":
-        errors.append("Rule ID is required")
-    elif any(r["rule_id"] == rule_id for r in st.session_state.rules):
-        errors.append(f"ID '{rule_id}' already exists")
-
-    if not control_name or control_name.strip() == "":
-        errors.append("Rule name is required")
-
-    if not column or column.strip() == "":
-        errors.append("Column is required")
-
-    if errors:
-        for error in errors:
-            st.error(error)
+    if validation_errors:
+        st.error("**Validation failed** - Please fix the following issues:")
+        for err in validation_errors:
+            st.markdown(f"❌ **{err['message']}**")
+            if err.get('suggestion'):
+                st.caption(f"   💡 {err['suggestion']}")
     else:
         # Create the rule
         new_rule = {
@@ -446,14 +658,9 @@ if st.button("Add this rule", type="primary", use_container_width=True):
         st.session_state.rules.append(new_rule)
         st.session_state.report_generated = False  # Reset the report
 
-        # Clear only the identifying fields, so the user can add the next rule
-        # without retyping the dimension / logic type / owner / frequency.
-        for k in ["f_rule_id", "f_control_name", "f_column_select", "f_column_text",
-                  "f_param", "f_threshold", "f_description", "f_kpi", "f_remediation"]:
-            st.session_state.pop(k, None)
-
-        st.success(f"Rule '{rule_id}' added successfully.")
-        st.rerun()
+        # Show success toast
+        st.toast(f"Rule {rule_id} added!", icon="✅")
+        st.success(f"Rule **{rule_id}** added successfully! You can add another rule or continue to the report.")
 
 st.markdown("---")
 
@@ -594,11 +801,79 @@ if uploaded_rules is not None:
     except Exception as e:
         st.error(f"Error while importing: {str(e)}")
 
+# =====================================================
+# SECTION: Currently defined rules (at the end, in expander)
+# =====================================================
+st.markdown("---")
+
+rules_count = len(st.session_state.rules)
+expander_title = f"Currently Defined Rules ({rules_count})" if rules_count > 0 else "Currently Defined Rules"
+
+with st.expander(expander_title, expanded=rules_count > 0):
+    if rules_count == 0:
+        st.info("No rules defined yet. Use the quick-add templates above or create a custom rule.")
+    else:
+        # Create a DataFrame for display
+        rules_data = []
+        for idx, rule in enumerate(st.session_state.rules):
+            rules_data.append({
+                "#": idx + 1,
+                "Rule ID": rule['rule_id'],
+                "Name": rule['control_name'],
+                "Type": rule['logic_type'],
+                "Dimension": rule['control_type'],
+                "Severity": rule['severity'],
+                "Column": rule.get('column', '')[:30] + ('...' if len(rule.get('column', '')) > 30 else '')
+            })
+
+        rules_df = pd.DataFrame(rules_data)
+        st.dataframe(rules_df, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+
+        # Delete individual rules
+        st.markdown("**Delete a rule:**")
+        rule_options = [f"{r['rule_id']} - {r['control_name']}" for r in st.session_state.rules]
+
+        col_del1, col_del2 = st.columns([3, 1])
+        with col_del1:
+            rule_to_delete = st.selectbox(
+                "Select rule to delete",
+                options=[""] + rule_options,
+                key="rule_to_delete",
+                label_visibility="collapsed"
+            )
+        with col_del2:
+            if st.button("Delete", disabled=not rule_to_delete, use_container_width=True):
+                if rule_to_delete:
+                    idx = rule_options.index(rule_to_delete)
+                    st.session_state.rules.pop(idx)
+                    st.session_state.report_generated = False
+                    st.rerun()
+
+        st.markdown("---")
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("Remove all rules", type="secondary", use_container_width=True):
+                st.session_state.rules = []
+                st.session_state.report_generated = False
+                st.rerun()
+
+        with col2:
+            st.download_button(
+                label="Export rules (JSON)",
+                data=json.dumps(st.session_state.rules, indent=2, ensure_ascii=False),
+                file_name="dq_rules.json",
+                mime="application/json",
+                use_container_width=True
+            )
+
 # Navigation
 st.markdown("---")
 if len(st.session_state.rules) > 0:
     st.success(f"{len(st.session_state.rules)} rule(s) defined. You can now generate the report.")
-    if st.button("Continue to Quality Report", type="primary"):
+    if st.button("Continue to Quality Report", type="primary", use_container_width=True):
         st.switch_page("pages/3_Quality_Report.py")
 else:
     st.info("Create at least one rule to generate a quality report.")

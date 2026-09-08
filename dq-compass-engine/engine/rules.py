@@ -44,6 +44,17 @@ def _client_col(df: pd.DataFrame) -> str:
     return "client_id" if "client_id" in df.columns else df.columns[0]
 
 
+def _get_exception_columns(df: pd.DataFrame, column: str) -> list:
+    """
+    Returns the list of columns to include in exceptions DataFrame.
+    Avoids duplicates when id_col == column.
+    """
+    id_col = _client_col(df)
+    if id_col == column:
+        return [column]
+    return [id_col, column]
+
+
 # ---------------------------------------------------------------------------
 # 1. not_null
 # ---------------------------------------------------------------------------
@@ -57,8 +68,8 @@ def not_null(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
     failed = int(is_missing.sum())
     rate_pct = (failed / total * 100) if total else 0.0
 
-    id_col = _client_col(df)
-    exceptions = df.loc[is_missing, [id_col, column]].copy()
+    exc_cols = _get_exception_columns(df, column)
+    exceptions = df.loc[is_missing, exc_cols].copy()
     exceptions["reason"] = f"{column} manquant"
 
     return {
@@ -91,8 +102,8 @@ def regex(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
     failed = int(is_malformed.sum())
     rate_pct = (failed / eligible * 100) if eligible else 0.0
 
-    id_col = _client_col(df)
-    exceptions = df.loc[is_malformed, [id_col, column]].copy()
+    exc_cols = _get_exception_columns(df, column)
+    exceptions = df.loc[is_malformed, exc_cols].copy()
     exceptions["reason"] = f"{column} non conforme au format attendu"
 
     return {
@@ -159,7 +170,8 @@ def conditional_equals(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
     failed = int(breaches.sum())
 
     id_col = _client_col(df)
-    exceptions = df.loc[breaches, [id_col, cond_col, target_col]].copy()
+    exc_cols = list(dict.fromkeys([id_col, cond_col, target_col]))  # deduplicate
+    exceptions = df.loc[breaches, exc_cols].copy()
     exceptions["reason"] = f"{cond_col}={cond_val} mais {target_col} != {target_val}"
 
     return {
@@ -197,8 +209,8 @@ def max_age_days(df: pd.DataFrame, rule: dict, datasets: dict) -> dict:
     total = len(df)
     failed = int(breaches_or_invalid.sum())
 
-    id_col = _client_col(df)
-    exceptions = df.loc[breaches_or_invalid, [id_col, column]].copy()
+    exc_cols = _get_exception_columns(df, column)
+    exceptions = df.loc[breaches_or_invalid, exc_cols].copy()
     exceptions["reason"] = f"{column} au-delà de {int(max_days)} jours (ou date invalide)"
 
     return {

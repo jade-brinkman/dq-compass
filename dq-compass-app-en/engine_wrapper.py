@@ -9,12 +9,9 @@ started from the command line (`engine/engine.py`). This is what makes an
 app-triggered run auditable (BF-AUD-01/02): nothing is left only in the OS
 temp folder any more.
 
-The automatic GDPR/personal-data check (data_quality_checks.run_gdpr_check)
-is also injected as an extra synthetic rule in the results: if personal data
-is detected, it shows up as a FAIL like any other control, with the flagged
-columns listed as its "exceptions" — so it is escalated to the data owner
-through the same report/export/re-import loop as any other data quality
-error, not just as an upload-time side note.
+Note: GDPR/personal-data detection is handled separately on the Upload page
+as an informational check only. It is NOT injected into the final quality
+report as a rule.
 """
 
 import sys
@@ -35,7 +32,8 @@ from engine import (  # noqa: E402
 )
 from utils import new_run_id, now_paris_iso  # noqa: E402
 
-from data_quality_checks import run_gdpr_check  # noqa: E402
+# GDPR check is now informational only (Upload page), not injected in the report
+# from data_quality_checks import run_gdpr_check  # noqa: E402
 
 RUNS_DIR = engine_path / "runs"
 
@@ -46,50 +44,17 @@ REQUIRED_CATALOGUE_COLS = [
 ]
 
 
-def _gdpr_result(df: pd.DataFrame) -> dict:
-    """Runs the GDPR/personal-data check and turns it into a rule-shaped
-    result dict, so it flows through the same summary/exceptions pipeline
-    as every other control."""
-    gdpr = run_gdpr_check(df)
-    detected = gdpr["details"]["detected_columns"]
-    total = len(df)
-    failed = len(detected)
-
-    if detected:
-        exc_rows = [{
-            "column": item["column"],
-            "category": item["category"],
-            "detection_method": item["detection_method"],
-            "reason": "Potential personal data (GDPR) detected in this column",
-        } for item in detected]
-        exceptions_df = pd.DataFrame(exc_rows)
-    else:
-        exceptions_df = pd.DataFrame(columns=["column", "category", "detection_method", "reason"])
-
-    return {
-        "rule_id": "RGPD-01",
-        "control_name": "Personal data detection (GDPR)",
-        "dimension": "RGPD",
-        "severity": "Medium",
-        "status": "FAIL" if detected else "PASS",
-        "total_records": total,
-        "failed_records": failed,
-        "kpi_value": failed,
-        "kpi_label": "Sensitive column(s) detected",
-        "_exceptions": exceptions_df,
-    }
-
-
 class DQEngineWrapper:
     """Simplified wrapper around the DQ engine"""
 
-    def __init__(self, data_file_path: str, rules: list):
+    def __init__(self, data_file_path: str, rules: list, preloaded_df: pd.DataFrame = None):
         """
         Initialize the engine wrapper
 
         Args:
             data_file_path: Path to the CSV data file
             rules: List of rule dictionaries
+            preloaded_df: Optional pre-loaded DataFrame to avoid re-reading the file
         """
         self.data_file_path = Path(data_file_path)
         self.rules = rules
@@ -97,6 +62,7 @@ class DQEngineWrapper:
         self.run_id = None
         self.exceptions = {}
         self.run_dir = None
+        self.preloaded_df = preloaded_df
 
     def run(self, progress_callback=None):
         """
@@ -155,11 +121,10 @@ class DQEngineWrapper:
             if progress_callback:
                 progress_callback(2, len(self.rules) + 2, "Running rules...")
 
-            # GDPR check runs on the primary uploaded dataset, independently
-            # of the user-defined catalogue, and is appended as an extra
-            # synthetic result row.
-            primary_df = pd.read_csv(self.data_file_path, dtype=str, keep_default_na=False)
-            extra_results = [_gdpr_result(primary_df)]
+            # NOTE: GDPR/personal-data detection is now informational only,
+            # displayed during the Upload step. It is NOT injected as a rule
+            # in the final report (per user request: "RGPD c'est juste une info
+            # au moment de la pré-analyse du dataset").
 
             data_dir = self.data_file_path.parent
             outcome = execute_run(
@@ -169,7 +134,7 @@ class DQEngineWrapper:
                 run_id=self.run_id,
                 timestamp=timestamp,
                 log=log,
-                extra_results=extra_results,
+                extra_results=[],
             )
 
             if progress_callback:

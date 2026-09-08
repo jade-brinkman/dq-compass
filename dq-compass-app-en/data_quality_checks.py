@@ -49,10 +49,15 @@ FR_NIR_PATTERN = re.compile(r"^[12]\d{2}(0[1-9]|1[0-2])\d{2}\d{3}\d{3}\d{2}$")
 DATE_LIKE_PATTERN = re.compile(r"^\d{4}[-/]\d{2}[-/]\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$|^\d{2}[-/]\d{2}[-/]\d{4}$")
 
 
-def _sample_values(series: pd.Series, n: int = 50):
+def _sample_values(series: pd.Series, n: int = 100):
+    """Get a sample of non-empty values for pattern detection.
+    Uses random sampling for better representativeness on large datasets."""
     values = series.dropna().astype(str)
     values = values[values.str.strip() != ""]
-    return values.head(n)
+    if len(values) <= n:
+        return values
+    # Random sample for better representativeness
+    return values.sample(n=n, random_state=42)
 
 
 def run_gdpr_check(df: pd.DataFrame) -> dict:
@@ -124,15 +129,25 @@ def run_gdpr_check(df: pd.DataFrame) -> dict:
 # ---------------------------------------------------------------------------
 
 def _check_duplicate_rows(df: pd.DataFrame) -> dict:
-    dup_mask = df.duplicated(keep=False)
-    dup_count = int(dup_mask.sum())
-    dup_pct = (dup_count / len(df) * 100) if len(df) else 0.0
+    # For large datasets, use a faster hash-based approach
+    if len(df) > 10000:
+        # Sample-based estimation for very large datasets
+        sample_size = min(5000, len(df))
+        sample = df.sample(n=sample_size, random_state=42)
+        sample_dup_count = int(sample.duplicated(keep=False).sum())
+        dup_pct = (sample_dup_count / sample_size * 100)
+        dup_count = int(len(df) * dup_pct / 100)  # Estimated
+    else:
+        dup_mask = df.duplicated(keep=False)
+        dup_count = int(dup_mask.sum())
+        dup_pct = (dup_count / len(df) * 100) if len(df) else 0.0
 
     severity = "ok"
     issues = []
     if dup_count > 0:
         severity = "critical" if dup_pct >= 5 else "warning"
-        issues.append(f"{dup_count:,} fully duplicated row(s) found ({dup_pct:.1f}% of the file).")
+        estimate_note = " (estimated)" if len(df) > 10000 else ""
+        issues.append(f"{dup_count:,} fully duplicated row(s) found{estimate_note} ({dup_pct:.1f}% of the file).")
 
     return {
         "check": "duplicate_rows",
@@ -160,11 +175,25 @@ def _check_empty_columns(df: pd.DataFrame) -> dict:
 
 def _check_missing_values(df: pd.DataFrame, threshold_pct: float = 20.0) -> dict:
     high_missing_columns = []
+    total_rows = len(df)
+
+    if total_rows == 0:
+        return {
+            "check": "missing_values",
+            "label": "High missing-value rate",
+            "severity": "ok",
+            "issues": [],
+            "details": {"high_missing_columns": []},
+        }
+
+    # Vectorized approach - much faster than iterating
+    # Convert all columns to string and check for empty/whitespace
+    empty_counts = df.apply(lambda col: (col.astype(str).str.strip() == "").sum())
+
     for col in df.columns:
-        non_empty = (df[col].astype(str).str.strip() != "").sum()
-        missing_pct = (1 - non_empty / len(df)) * 100 if len(df) else 0.0
+        missing_pct = (empty_counts[col] / total_rows) * 100
         if missing_pct >= threshold_pct:
-            high_missing_columns.append({"column": col, "missing_pct": missing_pct})
+            high_missing_columns.append({"column": col, "missing_pct": round(missing_pct, 1)})
 
     high_missing_columns.sort(key=lambda c: c["missing_pct"], reverse=True)
 
@@ -233,13 +262,23 @@ def _check_constant_columns(df: pd.DataFrame) -> dict:
 
 def _check_whitespace_issues(df: pd.DataFrame) -> dict:
     affected_columns = []
-    for col in df.columns:
-        sample = df[col].dropna().astype(str)
+
+    # For large datasets, only sample
+    if len(df) > 5000:
+        sample_df = df.sample(n=5000, random_state=42)
+    else:
+        sample_df = df
+
+    for col in sample_df.columns:
+        sample = sample_df[col].dropna().astype(str)
         if len(sample) == 0:
             continue
         has_padding = (sample != sample.str.strip()) & (sample.str.strip() != "")
         count = int(has_padding.sum())
         if count > 0:
+            # Extrapolate count for full dataset
+            if len(df) > 5000:
+                count = int(count * len(df) / 5000)
             affected_columns.append({"column": col, "affected_rows": count})
 
     severity = "warning" if affected_columns else "ok"

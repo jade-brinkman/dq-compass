@@ -582,9 +582,18 @@ def inject_base_style():
         color: {colors['text']} !important;
     }}
 
-    /* Plotly charts - make them adapt to dark mode */
-    .js-plotly-plot .plotly .main-svg {{
-        background-color: {colors['bg']} !important;
+    /* Plotly charts - ensure visibility */
+    .js-plotly-plot {{
+        width: 100% !important;
+        min-height: 300px !important;
+    }}
+    [data-testid="stPlotlyChart"] {{
+        width: 100% !important;
+        min-height: 300px !important;
+    }}
+    .stPlotlyChart {{
+        width: 100% !important;
+        min-height: 300px !important;
     }}
 
     /* Success/Warning/Error/Info boxes text */

@@ -165,6 +165,29 @@ def _transform_wide_to_long_if_needed(df: pd.DataFrame, dataset_name: str, log: 
     return df_long
 
 
+def _deduplicate_columns(df: pd.DataFrame, log: logging.Logger) -> pd.DataFrame:
+    """
+    Rename duplicate columns by appending _1, _2, etc.
+    This prevents errors when accessing columns by name.
+    """
+    cols = df.columns.tolist()
+    seen = {}
+    new_cols = []
+
+    for col in cols:
+        if col in seen:
+            seen[col] += 1
+            new_name = f"{col}_{seen[col]}"
+            log.warning("Colonne dupliquée '%s' renommée en '%s'", col, new_name)
+            new_cols.append(new_name)
+        else:
+            seen[col] = 0
+            new_cols.append(col)
+
+    df.columns = new_cols
+    return df
+
+
 def load_all_datasets(valid_rows, data_dir: Path, log: logging.Logger) -> dict:
     datasets = {}
     for row in valid_rows:
@@ -176,6 +199,11 @@ def load_all_datasets(valid_rows, data_dir: Path, log: logging.Logger) -> dict:
                 # (pd.to_numeric, pd.to_datetime) — aucune hypothèse sur les noms
                 # de colonnes d'un jeu de données en particulier.
                 df = pd.read_csv(path, dtype=str, keep_default_na=False)
+
+                # Handle duplicate column names
+                if df.columns.duplicated().any():
+                    log.warning("Colonnes dupliquées détectées dans %s, renommage automatique", name)
+                    df = _deduplicate_columns(df, log)
 
                 # Transformation wide→long automatique si colonnes-année détectées
                 df = _transform_wide_to_long_if_needed(df, name, log)

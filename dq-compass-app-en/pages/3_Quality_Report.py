@@ -103,10 +103,11 @@ if not st.session_state.report_generated or st.session_state.last_run_results is
             progress_bar.progress(progress)
             status_text.text(f"{message} ({current}/{total})")
 
-        # Run the engine
+        # Run the engine - pass preloaded DataFrame to avoid re-reading file
         engine = DQEngineWrapper(
             data_file_path=st.session_state.uploaded_file_path,
-            rules=st.session_state.rules
+            rules=st.session_state.rules,
+            preloaded_df=st.session_state.uploaded_df
         )
 
         results = engine.run(progress_callback=update_progress)
@@ -188,41 +189,78 @@ if st.session_state.report_generated and st.session_state.last_run_results:
     # Section 2: Charts
     st.subheader("Charts")
 
+    # Prepare chart data
+    status_counts = summary_df['status'].value_counts().reset_index()
+    status_counts.columns = ['status', 'count']
+
+    # Define consistent colors
+    STATUS_COLORS = {'PASS': '#00CC96', 'FAIL': '#EF553B', 'ERROR': '#FFA15A'}
+
     col1, col2 = st.columns(2)
 
     with col1:
+        st.markdown("**Status breakdown**")
         # Pie chart: PASS/FAIL/ERROR breakdown
-        status_counts = summary_df['status'].value_counts()
+        if not status_counts.empty:
+            fig_pie = px.pie(
+                status_counts,
+                values='count',
+                names='status',
+                color='status',
+                color_discrete_map=STATUS_COLORS,
+                hole=0.4
+            )
 
-        fig_pie = go.Figure(data=[go.Pie(
-            labels=status_counts.index,
-            values=status_counts.values,
-            marker=dict(colors=['#00CC96', '#EF553B', '#FFA15A']),
-            hole=0.4
-        )])
+            fig_pie.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate='%{label}: %{value} rules<extra></extra>'
+            )
 
-        fig_pie.update_layout(
-            title="Status breakdown",
-            height=400
-        )
+            fig_pie.update_layout(
+                height=380,
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+                margin=dict(t=20, b=60, l=20, r=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
 
-        st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("No data to display")
 
     with col2:
+        st.markdown("**Results by quality dimension**")
         # Bar chart: by dimension
         dim_status = summary_df.groupby(['dimension', 'status']).size().reset_index(name='count')
 
-        fig_bar = px.bar(
-            dim_status,
-            x='dimension',
-            y='count',
-            color='status',
-            title="Results by quality dimension",
-            color_discrete_map={'PASS': '#00CC96', 'FAIL': '#EF553B', 'ERROR': '#FFA15A'},
-            height=400
-        )
+        if not dim_status.empty:
+            fig_bar = px.bar(
+                dim_status,
+                x='dimension',
+                y='count',
+                color='status',
+                color_discrete_map=STATUS_COLORS,
+                barmode='group'
+            )
 
-        st.plotly_chart(fig_bar, use_container_width=True)
+            fig_bar.update_layout(
+                height=380,
+                xaxis_title="",
+                yaxis_title="Rules",
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+                margin=dict(t=20, b=60, l=50, r=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+
+            fig_bar.update_xaxes(tickangle=45)
+
+            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("No data to display")
 
     # Section 3: Breakdown by severity
     st.markdown("---")
@@ -230,18 +268,31 @@ if st.session_state.report_generated and st.session_state.last_run_results:
 
     severity_status = summary_df.groupby(['severity', 'status']).size().reset_index(name='count')
 
-    fig_severity = px.bar(
-        severity_status,
-        x='severity',
-        y='count',
-        color='status',
-        title="Results by severity level",
-        color_discrete_map={'PASS': '#00CC96', 'FAIL': '#EF553B', 'ERROR': '#FFA15A'},
-        height=350,
-        category_orders={'severity': ['High', 'Medium', 'Low']}
-    )
+    if not severity_status.empty:
+        fig_severity = px.bar(
+            severity_status,
+            x='severity',
+            y='count',
+            color='status',
+            color_discrete_map=STATUS_COLORS,
+            category_orders={'severity': ['High', 'Medium', 'Low']},
+            barmode='group'
+        )
 
-    st.plotly_chart(fig_severity, use_container_width=True)
+        fig_severity.update_layout(
+            height=320,
+            xaxis_title="Severity",
+            yaxis_title="Number of rules",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+            margin=dict(t=20, b=60, l=50, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+
+        st.plotly_chart(fig_severity, use_container_width=True, config={'displayModeBar': False})
+    else:
+        st.info("No data to display")
 
     st.markdown("---")
 
