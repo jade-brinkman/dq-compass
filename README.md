@@ -1,4 +1,4 @@
-# DQ Compass : plateforme de contrôle qualité des données
+# DQ Compass - Universal Data Quality Platform
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
@@ -6,35 +6,37 @@
 ![Plotly](https://img.shields.io/badge/Plotly-3F4F75?logo=plotly&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C?logo=matplotlib&logoColor=white)
 
-## Sommaire
+<img width="887" height="111" alt="image" src="https://github.com/user-attachments/assets/78064138-f583-411d-be03-c3457aa7c24f" />
 
-- [Vision du projet](#vision-du-projet)
-- [Démarrage rapide](#démarrage-rapide)
-- [Structure du projet](#structure-du-projet)
-- [Workflow en 3 étapes](#workflow-en-3-étapes)
-- [Types de contrôles disponibles](#types-de-contrôles-disponibles)
-- [Comment ça marche](#comment-ça-marche)
-- [Exemple de rapport généré](#exemple-de-rapport-généré)
-- [Pour aller plus loin](#pour-aller-plus-loin)
-- [Équipe](#équipe)
+## Table of contents
 
-## Vision du projet
+- [Project vision](#project-vision)
+- [Quick start](#quick-start)
+- [Project structure](#project-structure)
+- [3-step workflow](#3-step-workflow)
+- [Available control types](#available-control-types)
+- [How it works](#how-it-works)
+- [Example generated report](#example-generated-report)
+- [Going further](#going-further)
+- [Team](#team)
 
-DQ Compass est une plateforme de contrôle qualité des données conçue pour s'adapter à n'importe quel métier et n'importe quel type de données. Aucune règle métier n'est codée en dur : tout est piloté par configuration.
+## Project vision
 
-Concrètement, l'utilisateur :
+DQ Compass is a data quality control platform designed to adapt to any business domain and any type of data. No business rule is hardcoded: everything is driven by configuration.
 
-1. Uploade son fichier CSV, quel que soit son format ou sa structure
-2. Définit ses propres règles de qualité via un formulaire Streamlit
-3. Obtient un rapport visuel des anomalies détectées, généré automatiquement
+In practice, the user:
 
-Projet réalisé dans le cadre du Datathon MBA Big Data & IA (MBA ESG).
+1. Uploads a CSV file, regardless of its format or structure
+2. Defines their own quality rules through a Streamlit form
+3. Gets a visual report of detected anomalies, generated automatically
+
+Project built for the MBA Big Data & AI Datathon (MBA ESG).
 
 ---
 
-## Démarrage rapide
+## Quick start
 
-### Lancer l'application Streamlit (recommandé)
+### Run the Streamlit app (recommended)
 
 ```bash
 cd dq-compass-app-en
@@ -47,16 +49,16 @@ chmod +x run.sh
 ./run.sh
 ```
 
-L'application s'ouvre à l'adresse `http://localhost:8501`.
+The app opens at `http://localhost:8501`.
 
-### Utiliser le moteur en ligne de commande
+### Use the engine from the command line
 
 ```bash
 cd dq-compass-engine
 python engine/engine.py --catalogue catalogue/control_catalogue.csv --data-dir data
 ```
 
-### Prérequis
+### Prerequisites
 
 - Python 3.8+
 - pip
@@ -67,150 +69,173 @@ python engine/engine.py --catalogue catalogue/control_catalogue.csv --data-dir d
 git clone <repo_url>
 cd dq-compass
 
-# Dépendances de l'application Streamlit
+# Streamlit app dependencies
 cd dq-compass-app-en
 pip install -r requirements.txt
 
-# Le moteur seul ne dépend que de pandas
+# The engine on its own only needs pandas
 cd ../dq-compass-engine
 pip install pandas
 ```
 
-Aucune configuration additionnelle n'est nécessaire : les fichiers temporaires sont créés automatiquement dans `/tmp/dq_compass/` (Linux/Mac) ou `%TEMP%\dq_compass\` (Windows).
+No additional configuration is needed: temporary files are created automatically in `/tmp/dq_compass/` (Linux/Mac) or `%TEMP%\dq_compass\` (Windows).
 
 ---
 
-## Structure du projet
+## Project structure
 
 ```
 dq-compass/
 │
-├── dq-compass-app-en/            Application Streamlit
-│   ├── Home.py                    Page d'accueil
+├── dq-compass-app-en/            Streamlit application
+│   ├── Home.py                    Home page
 │   ├── pages/
-│   │   ├── 1_Upload_Data.py        Étape 1 : upload du CSV
-│   │   ├── 2_Define_Rules.py       Étape 2 : formulaire de règles
-│   │   └── 3_Quality_Report.py     Étape 3 : rapport visuel
-│   ├── engine_wrapper.py          Wrapper d'appel au moteur
-│   ├── requirements.txt           Dépendances (streamlit, pandas, plotly)
-│   ├── README.md                  Documentation détaillée de l'app
-│   └── run.bat / run.sh           Scripts de lancement
+│   │   ├── 1_Upload_Data.py        Step 1: CSV upload
+│   │   ├── 2_Define_Rules.py       Step 2: rule form
+│   │   └── 3_Quality_Report.py     Step 3: visual report
+│   ├── engine_wrapper.py          Wrapper that calls the engine
+│   ├── requirements.txt           Dependencies (streamlit, pandas, plotly)
+│   ├── README.md                  Detailed app documentation
+│   └── run.bat / run.sh           Launch scripts
 │
-├── dq-compass-engine/            Moteur de règles (backend)
+├── dq-compass-engine/            Rules engine (backend)
 │   ├── engine/
-│   │   ├── engine.py               Orchestrateur générique
-│   │   ├── rules.py                7 logic_types génériques
-│   │   └── utils.py                Utilitaires (SHA-256, run_id...)
+│   │   ├── engine.py               Generic orchestrator
+│   │   ├── rules.py                7 generic logic_types
+│   │   └── utils.py                Utilities (SHA-256, run_id...)
 │   ├── catalogue/
-│   │   └── control_catalogue.csv   Catalogue de règles
-│   ├── data/                       Jeux de données
-│   └── runs/                       Historique des exécutions (evidence packs)
+│   │   └── control_catalogue.csv   Rule catalogue
+│   ├── data/                       Datasets
+│   └── runs/                       Run history (evidence packs)
 │
-└── README.md                      Ce fichier
+└── README.md                      This file
 ```
 
 ---
 
-## Workflow en 3 étapes
+## 3-step workflow
 
 ### 1. Upload Data
 
-![Upload Data](docs/screenshots/01_upload_data.png)
+<img width="919" height="407" alt="image" src="https://github.com/user-attachments/assets/e5d4639d-0715-42e0-a104-d003193720f1" />
+<img width="898" height="199" alt="image" src="https://github.com/user-attachments/assets/20dc71e0-421f-433c-926c-d2167343dc99" />
 
-- Upload de n'importe quel fichier CSV
-- Détection automatique du séparateur (`,` `;` `\t` `|`)
-- Détection automatique de format large (colonnes temporelles) et transformation en format long
-- Aperçu des données et statistiques de complétude
+- CSV file upload
+- Automatic separator detection (`,` `;` `\t` `|`)
+- Automatic detection of wide format (time-based columns) and transformation into long format
+- Data preview and completeness statistics
 
-La transformation automatique wide → long permet de traiter directement des jeux de données pivotés, par exemple des données BIS avec des colonnes-années.
+The automatic wide-to-long transformation makes it possible to process pivoted datasets directly, for example BIS data with year columns.
+
+An initial automatic analysis is run, letting the user get a first look at the dataset's characteristics.
+
+<img width="896" height="183" alt="image" src="https://github.com/user-attachments/assets/c124430a-9045-493a-94fc-4988d6c0cf28" />
+
+The user can then select the scope of the analysis.
+
+<img width="893" height="383" alt="image" src="https://github.com/user-attachments/assets/982c5d83-234d-4162-ad81-98dd0eb3c7f0" />
 
 ### 2. Define Rules
 
-![Define Rules](docs/screenshots/02_define_rules.png)
+- Interactive form to create quality rules
+- Contextual instructions based on the selected rule type
+- 7 available control types (see table below)
+- Import / export of rules in JSON format
 
-- Formulaire interactif pour créer des règles de qualité
-- Instructions contextuelles selon le type de règle choisi
-- 7 types de contrôles disponibles (voir tableau ci-dessous)
-- Import / export des règles au format JSON
+This screen lets you select the basic quality rules or create your own custom rules.
 
-Le formulaire garde une structure normée, la même quel que soit le métier, tout en restant assez souple pour s'adapter à des cas très différents.
+<img width="891" height="370" alt="image" src="https://github.com/user-attachments/assets/3c668dda-0111-45bf-9a70-07800f599ee8" />
+
+
+<img width="889" height="331" alt="image" src="https://github.com/user-attachments/assets/e913c274-2c12-4840-a54e-701f1724efc6" />
+<img width="888" height="421" alt="image" src="https://github.com/user-attachments/assets/589c142f-0601-4c06-99ab-82c0849fa525" />
+
+If the user already has a full catalogue of standardized rules, it can be imported directly into the app. A template is available for download to help build that catalogue.
+
+<img width="889" height="150" alt="image" src="https://github.com/user-attachments/assets/5960bf87-ac46-4fbb-b7ae-92bfd9435654" />
+
+The form keeps a standardized structure, the same regardless of the business domain, while staying flexible enough to adapt to very different use cases.
 
 ### 3. Quality Report
 
-![Quality Report](docs/screenshots/03_quality_report.png)
+- One-click report generation, with a progress bar
+- Visual KPIs: success rate, number of failures
+- Plotly visualizations: PASS / FAIL / ERROR breakdown, results by dimension, results by severity
+- Detailed table with filters, list of exceptions per rule
+- CSV / JSON export of results and exceptions
+- Automatic recommendations based on the results
 
-- Génération du rapport en un clic, avec barre de progression
-- KPIs visuels : taux de réussite, nombre d'échecs
-- Visualisations Plotly : répartition PASS / FAIL / ERROR, résultats par dimension, résultats par sévérité
-- Tableau détaillé avec filtres, liste des exceptions par règle
-- Export CSV / JSON des résultats et des exceptions
-- Recommandations automatiques selon les résultats obtenus
+<img width="897" height="299" alt="image" src="https://github.com/user-attachments/assets/8121a62c-39ee-4099-84a1-b6cf9b694cb8" />
 
-> Captures d'écran à déposer dans `docs/screenshots/` sous les trois noms ci-dessus pour qu'elles s'affichent automatiquement.
+<img width="868" height="125" alt="image" src="https://github.com/user-attachments/assets/9853015e-5f99-49fb-b5df-9a9ed7535ece" />
+
+Once the report is generated, the user can download it in several formats.
+
+<img width="887" height="102" alt="image" src="https://github.com/user-attachments/assets/cd994517-a944-4b3f-a0d4-2386191d9a46" />
 
 ---
 
-## Types de contrôles disponibles
+## Available control types
 
-| # | logic_type | Description | Exemple d'usage |
+| # | logic_type | Description | Example use case |
 |---|---|---|---|
-| 1 | `not_null` | Vérifie l'absence de valeurs manquantes sur une colonne | Email obligatoire |
-| 2 | `regex` | Vérifie un format via expression régulière | Format email, téléphone, IBAN |
-| 3 | `unique` | Détecte les doublons sur une colonne | ID client unique |
-| 4 | `unique_composite` | Détecte les doublons sur une combinaison de colonnes | (série_id + année) unique |
-| 5 | `conditional_equals` | Vérifie une cohérence conditionnelle entre colonnes | Si statut = fermé alors solde = 0 |
-| 6 | `max_age_days` | Vérifie la fraîcheur d'une date | Mise à jour de moins de 30 jours |
-| 7 | `reconciliation_sum` | Compare des totaux entre fichiers ou groupes | Somme des régions = total national |
+| 1 | `not_null` | Checks that a column has no missing values | Required email |
+| 2 | `regex` | Checks a format using a regular expression | Email, phone, IBAN format |
+| 3 | `unique` | Detects duplicates on a column | Unique client ID |
+| 4 | `unique_composite` | Detects duplicates on a combination of columns | Unique (series_id + year) |
+| 5 | `conditional_equals` | Checks conditional consistency between columns | If status = closed then balance = 0 |
+| 6 | `max_age_days` | Checks how recent a date is | Update less than 30 days old |
+| 7 | `reconciliation_sum` | Compares totals between files or groups | Sum of regions = national total |
 
-Ces 7 types sont strictement génériques : aucun ne fait référence à un métier ou à un dataset particulier. Six d'entre eux (`not_null`, `regex`, `unique`, `conditional_equals`, `max_age_days`, `reconciliation_sum`) correspondent aux exigences du cahier des besoins (BF-CAT-02) ; `unique_composite` est une extension documentée pour les cas multi-colonnes.
+These 7 types are strictly generic: none of them refers to a specific business domain or dataset.
 
 ---
 
-## Comment ça marche
+## How it works
 
-1. L'utilisateur uploade un CSV via Streamlit
-2. Streamlit sauvegarde le fichier dans un dossier temporaire
-3. L'utilisateur définit des règles via le formulaire
-4. Streamlit génère un catalogue CSV temporaire
-5. L'Engine Wrapper appelle le moteur avec le catalogue et les données
-6. Le moteur charge les données (transformation automatique si format large), exécute les règles génériques et retourne un résumé (`results_summary`) ainsi que les exceptions
-7. Streamlit affiche le rapport avec ses visualisations
+1. The user uploads a CSV via Streamlit
+2. Streamlit saves the file to a temporary folder
+3. The user defines rules through the form
+4. Streamlit generates a temporary CSV catalogue
+5. The Engine Wrapper calls the engine with the catalogue and the data
+6. The engine loads the data (automatic transformation if wide format), runs the generic rules, and returns a summary (`results_summary`) along with the exceptions
+7. Streamlit displays the report with its visualizations, and the user can get a report ready to share
 
-### Contrat de sortie (reproductibilité)
+### Output contract (reproducibility)
 
-`results_summary.csv` (9 colonnes fixes) :
+`results_summary.csv` (9 fixed columns):
 
 ```
 rule_id, control_name, dimension, severity, status,
 total_records, failed_records, kpi_value, kpi_label
 ```
 
-`exceptions/{rule_id}_exceptions.csv` : identifiant de ligne, colonne(s) fautive(s), motif.
+`exceptions/{rule_id}_exceptions.csv`: row identifier, offending column(s), reason.
 
-`manifest.json` : run_id, timestamp, sources (SHA-256 et nombre de lignes), copie du catalogue utilisé.
+`manifest.json`: run_id, timestamp, sources (SHA-256 and row count), a copy of the catalogue used.
 
-Deux exécutions sur les mêmes fichiers produisent un `results_summary.csv` identique à l'octet près.
+Two runs on the same files produce a byte-identical `results_summary.csv`.
 
 ---
 
-## Exemple de rapport généré
+## Example generated report
 
 ```
-Total règles      : 6
-Réussies          : 5
-Échecs            : 1
-Erreurs           : 0
-Taux de réussite  : 83,3 %
+Total rules   : 6
+Passed        : 5
+Failed        : 1
+Errors        : 0
+Success rate  : 83.3%
 ```
 
-Graphiques : répartition PASS / FAIL (83 % / 17 %), résultats par dimension (complétude 100 %, réconciliation 0 %), résultats par sévérité (High 75 %, Medium 100 %).
+Charts: PASS / FAIL split (83% / 17%), results by dimension (completeness 100%, reconciliation 0%), results by severity (High 75%, Medium 100%).
 
-Exemple d'exceptions (règle DQ06, réconciliation du solde par région) :
+Example exceptions (rule DQ06, balance reconciliation by region):
 
 ```
 rule_id: DQ06
 failed_records: 15
-kpi_value: 2.45 (écart max en %)
+kpi_value: 2.45 (max deviation in %)
 
 client_id | region | balance | computed_total | reference_total | deviation_pct
 C001      | North  | 1500    | 45678.00       | 45000.00        | 1.51
@@ -219,30 +244,30 @@ C001      | North  | 1500    | 45678.00       | 45000.00        | 1.51
 
 ---
 
-## Pour aller plus loin
+## Going further
 
-### Ajouter un 8e logic_type
+### Adding an 8th logic_type
 
-1. Ouvrir `dq-compass-engine/engine/rules.py`
-2. Créer une fonction générique, sur le même modèle que les 7 existantes
-3. L'ajouter au dictionnaire `LOGIC_TYPE_FUNCTIONS`
-4. Mettre à jour le formulaire Streamlit pour l'inclure
+1. Open `dq-compass-engine/engine/rules.py`
+2. Create a generic function, following the same pattern as the 7 existing ones
+3. Add it to the `LOGIC_TYPE_FUNCTIONS` dictionary
+4. Update the Streamlit form to include it
 
-Exemple : un logic_type `value_range` pour vérifier qu'une valeur reste dans un intervalle [min, max].
+Example: a `value_range` logic_type to check that a value stays within a [min, max] interval.
 
-### Automatisation
+### Automation
 
-L'application Streamlit convient à l'exploration interactive. Pour une automatisation, le moteur s'utilise directement en ligne de commande :
+The Streamlit app is well suited to interactive exploration. For automation, the engine can be used directly from the command line:
 
 ```bash
 cd dq-compass-engine
-python engine/engine.py --catalogue mon_catalogue.csv --data-dir mes_donnees/
+python engine/engine.py --catalogue my_catalogue.csv --data-dir my_data/
 ```
 
-### Intégration CI/CD
+### CI/CD integration
 
 ```yaml
-# Exemple GitLab CI
+# Example GitLab CI
 quality_check:
   script:
     - cd dq-compass-engine
@@ -252,11 +277,14 @@ quality_check:
 
 ---
 
-## Équipe
+## Team
 
-Projet réalisé dans le cadre du Datathon MBA Big Data & IA.
+Project built for the MBA Big Data & AI Datathon.
 
-- **Lucas** : reporting layer et application Streamlit
-- **Jade** : moteur de règles (DQ Engine)
-- **Irmeline** : catalogue de règles
-- **Johann** : couche d'audit
+- **Jade**
+- **Irmeline**
+- **Karima**
+- **Melissa**
+- **Axel**
+- **Johann**
+- **Lucas**
