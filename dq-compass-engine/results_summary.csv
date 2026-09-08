@@ -1,0 +1,7 @@
+rule_id,control_name,dimension,severity,status,total_records,failed_records,kpi_value,kpi_label
+DQ01,Complétude email,Complétude,High,FAIL,521,5,99.0403,Taux de complétude >= 99%
+DQ02,Validité format email,Validité,Medium,FAIL,521,20,96.124,Taux de conformité au format
+DQ03,Unicité client_id,Unicité,High,FAIL,521,2,0.3839,Taux de duplication = 0%
+DQ04,Cohérence solde compte clos,Cohérence,High,FAIL,521,4,4.0,Nb de comptes clos à solde non nul
+DQ05,Fraîcheur mise à jour client,Fraîcheur,Medium,FAIL,521,31,31.0,Nb de dépassements SLA de fraîcheur
+DQ06,Réconciliation solde par région,Réconciliation,High,FAIL,521,100,4.7619,Écart en EUR et en % par région

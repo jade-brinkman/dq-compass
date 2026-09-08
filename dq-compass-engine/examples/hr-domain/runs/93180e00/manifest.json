@@ -1,0 +1,25 @@
+{
+  "run_id": "93180e00",
+  "timestamp": "2026-09-07T14:20:30+02:00",
+  "engine": "dq-compass DQ Engine v1",
+  "sources": [
+    {
+      "file": "employees.csv",
+      "path": "examples/hr-domain/data/employees.csv",
+      "sha256": "66c8dd149eb76134bc04f231f77268c623fb610004a31d827020bea2787639f9",
+      "row_count": 40
+    },
+    {
+      "file": "finance_totals.csv",
+      "path": "examples/hr-domain/data/finance_totals.csv",
+      "sha256": "791509ed9c5bbe9f4b1a3499226b3461e10dba8d912d50c359a339fb1cf667af",
+      "row_count": 4
+    }
+  ],
+  "catalogue_file": "control_catalogue.csv",
+  "catalogue_sha256": "bdc8a0be96726e65d42fc22c153c74f6fb2ad7802c1d2fe21735ad99e84c3cfc",
+  "filters": {
+    "dimensions": null,
+    "rules": null
+  }
+}

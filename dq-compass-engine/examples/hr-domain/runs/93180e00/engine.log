@@ -1,0 +1,14 @@
+2026-09-07 12:20:30,731 [INFO] === DQ Engine — run 93180e00 démarré à 2026-09-07T14:20:30+02:00 ===
+2026-09-07 12:20:30,734 [INFO] Catalogue chargé : examples/hr-domain/catalogue_rh.csv (4 règles)
+2026-09-07 12:20:30,735 [INFO] Chargement du jeu de données : examples/hr-domain/data/employees.csv
+2026-09-07 12:20:30,736 [INFO] Chargement du jeu de données : examples/hr-domain/data/finance_totals.csv
+2026-09-07 12:20:30,742 [INFO] RH01 (not_null) -> FAIL | total=40 failed=1 kpi=97.5
+2026-09-07 12:20:30,744 [INFO] RH02 (unique) -> FAIL | total=40 failed=2 kpi=5.0
+2026-09-07 12:20:30,747 [INFO] RH03 (conditional_equals) -> PASS | total=40 failed=0 kpi=0
+2026-09-07 12:20:30,751 [INFO] RH04 (reconciliation_sum) -> FAIL | total=40 failed=14 kpi=7.4074
+2026-09-07 12:20:30,754 [INFO] results_summary.csv écrit (4 règles)
+2026-09-07 12:20:30,757 [INFO] Exceptions écrites pour RH01 : examples/hr-domain/runs/93180e00/exceptions/RH01_exceptions.csv (1 lignes)
+2026-09-07 12:20:30,761 [INFO] Exceptions écrites pour RH02 : examples/hr-domain/runs/93180e00/exceptions/RH02_exceptions.csv (2 lignes)
+2026-09-07 12:20:30,768 [INFO] Exceptions écrites pour RH04 : examples/hr-domain/runs/93180e00/exceptions/RH04_exceptions.csv (14 lignes)
+2026-09-07 12:20:30,769 [INFO] manifest.json écrit (2 source(s) référencée(s))
+2026-09-07 12:20:30,770 [INFO] === Run 93180e00 terminé en 0.04s ===
